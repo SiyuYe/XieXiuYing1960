@@ -1,0 +1,87 @@
+{
+  "version": "cms-v7.0",
+  "backendMode": "appsScript",
+  "appsScriptApiUrl": "",
+  "brand": {
+    "zh": "謝秀英",
+    "en": "Hsieh Hsiu-Ying",
+    "mark": "秀",
+    "siteName": "謝秀英書畫藝術館"
+  },
+  "facebookUrl": "https://www.facebook.com/XieXiuYing1960/",
+  "theme": {
+    "primary": "#6bc2ba"
+  },
+  "nav": [
+    {
+      "id": "home",
+      "label": "🏠 Home",
+      "href": "index.html"
+    },
+    {
+      "id": "about",
+      "label": "關於秀英",
+      "href": "about.html"
+    },
+    {
+      "id": "gallery",
+      "label": "藝廊",
+      "href": "gallery.html"
+    },
+    {
+      "id": "works",
+      "label": "作品集",
+      "href": "works.html"
+    },
+    {
+      "id": "exhibitions",
+      "label": "展覽經歷",
+      "href": "exhibitions.html"
+    },
+    {
+      "id": "history",
+      "label": "歷史回顧",
+      "href": "history.html"
+    },
+    {
+      "id": "contact",
+      "label": "聯絡",
+      "href": "contact.html"
+    }
+  ],
+  "homeQuickNav": [
+    {
+      "id": "hero",
+      "label": "藝術焦點"
+    },
+    {
+      "id": "news",
+      "label": "最新消息"
+    },
+    {
+      "id": "online-show",
+      "label": "線上藝廊"
+    },
+    {
+      "id": "featured",
+      "label": "精選作品"
+    },
+    {
+      "id": "quote",
+      "label": "畫家語錄"
+    },
+    {
+      "id": "fb",
+      "label": "粉專消息"
+    }
+  ],
+  "contactReasons": [
+    "作品收藏洽詢",
+    "展覽邀約",
+    "課程／教學",
+    "媒體採訪",
+    "其他合作"
+  ],
+  "adminWriteToken": "",
+  "note": "appsScriptApiUrl 可在 admin/settings.html 設定；正式上線也可直接填在此檔。"
+}

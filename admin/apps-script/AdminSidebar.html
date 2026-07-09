@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root{--main:#6bc2ba;--deep:#2b5854;--soft:#e9f8f6;--paper:#fff;--line:#d5ece8;--danger:#b94a4a;}
+    *{box-sizing:border-box} body{margin:0;font-family:Arial,'Noto Sans TC',sans-serif;color:#173a37;background:linear-gradient(180deg,#eefaf8,#fff)}
+    header{position:sticky;top:0;background:rgba(255,255,255,.96);border-bottom:1px solid var(--line);padding:14px;z-index:3}
+    h1{margin:0;font-size:18px;color:var(--deep)} .sub{font-size:12px;opacity:.72;margin-top:4px}
+    .tabs{display:flex;gap:6px;overflow:auto;padding:10px 12px;background:#f7fcfb;position:sticky;top:65px;z-index:2;border-bottom:1px solid var(--line)}
+    .tab{border:0;border-radius:999px;padding:8px 11px;background:#fff;color:var(--deep);font-weight:700;white-space:nowrap;cursor:pointer;border:1px solid var(--line)}
+    .tab.active{background:var(--main);color:#fff;box-shadow:0 8px 18px rgba(107,194,186,.24)}
+    main{padding:14px}.card{background:rgba(255,255,255,.92);border:1px solid var(--line);border-radius:18px;padding:14px;margin-bottom:12px;box-shadow:0 10px 30px rgba(67,116,111,.08)}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.stat{background:var(--soft);border-radius:14px;padding:10px}.num{font-size:22px;font-weight:900;color:var(--deep)}.lab{font-size:12px;opacity:.7}
+    label{display:block;font-size:12px;font-weight:800;margin:10px 0 4px;color:#315d59} input,textarea,select{width:100%;border:1px solid var(--line);border-radius:12px;padding:9px;background:#fff;font-size:13px} textarea{min-height:80px}
+    .btn{border:0;border-radius:12px;padding:9px 12px;background:var(--main);color:#fff;font-weight:800;cursor:pointer;margin:4px 4px 4px 0}.btn.secondary{background:#fff;color:var(--deep);border:1px solid var(--line)}.btn.danger{background:var(--danger)}
+    .row{border-top:1px solid var(--line);padding:10px 0}.row:first-child{border-top:0}.title{font-weight:900}.meta{font-size:12px;opacity:.7;margin-top:4px}.pill{display:inline-block;border-radius:999px;background:var(--soft);padding:3px 8px;font-size:12px;margin-right:4px}
+    .hidden{display:none}.loading{opacity:.7}.error{color:var(--danger);font-weight:800}.hint{font-size:12px;opacity:.75;line-height:1.5}.toolbar{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.thumb{width:56px;height:56px;border-radius:12px;object-fit:cover;background:#e7f4f2;float:right;margin-left:8px}
+  </style>
+</head>
+<body>
+  <header><h1>謝秀英藝術館 CMS</h1><div id="sub" class="sub">讀取中...</div></header>
+  <nav class="tabs" id="tabs"></nav>
+  <main id="app"><div class="card loading">正在載入後台...</div></main>
+
+<script>
+const ENTITIES = {
+  dashboard:'總覽', settings:'設定', home:'首頁', artworks:'作品', announcements:'公告', gallery:'藝廊', exhibitions:'展覽', history:'回顧', books:'書籍', contacts:'表單', libraries:'作品庫'
+};
+let state={tab:'dashboard', dashboard:null, rows:[], editing:null, settings:null};
+
+function $(id){return document.getElementById(id)}
+function run(fn,...args){return new Promise((res,rej)=>google.script.run.withSuccessHandler(res).withFailureHandler(err=>rej(err))[fn](...args))}
+function esc(s){return String(s??'').replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]))}
+function bool(v){return v===true || String(v).toUpperCase()==='TRUE'}
+function tabs(){ $('tabs').innerHTML=Object.entries(ENTITIES).map(([k,v])=>`<button class="tab ${state.tab===k?'active':''}" onclick="openTab('${k}')">${v}</button>`).join('') }
+async function init(){tabs(); await loadDashboard();}
+async function loadDashboard(){state.dashboard=await run('adminGetDashboard'); $('sub').textContent=state.dashboard.siteName+'｜'+state.dashboard.version; renderDashboard()}
+async function openTab(tab){state.tab=tab;state.editing=null;tabs(); if(tab==='dashboard') return loadDashboard(); if(tab==='settings'||tab==='home') {state.settings=await run('adminGetSettings'); return renderSettings(tab)} if(tab==='contacts'){state.rows=(await run('adminListContacts')).rows; return renderContacts()} const map={artworks:'artworks',announcements:'announcements',gallery:'gallery',exhibitions:'exhibitions',history:'history',books:'books',libraries:'libraries'}; state.rows=(await run('adminList',map[tab])).rows; renderList(tab)}
+function renderDashboard(){const c=state.dashboard.counts; $('app').innerHTML=`<div class="card"><h2>後台總覽</h2><div class="grid"><div class="stat"><div class="num">${c.artworks}</div><div class="lab">作品總數</div></div><div class="stat"><div class="num">${c.publicArtworks}</div><div class="lab">公開作品</div></div><div class="stat"><div class="num">${c.hero}</div><div class="lab">首頁輪播</div></div><div class="stat"><div class="num">${c.featured}</div><div class="lab">精選作品</div></div><div class="stat"><div class="num">${c.incompleteArtworks||0}</div><div class="lab">待補資料</div></div><div class="stat"><div class="num">${c.announcements}</div><div class="lab">公告</div></div><div class="stat"><div class="num">${c.unreadContacts}</div><div class="lab">未處理表單</div></div></div><div class="toolbar"><button class="btn" onclick="syncDrive()">同步 Google Drive 作品</button><button class="btn secondary" onclick="openTab('artworks')">管理作品</button><button class="btn secondary" onclick="openTab('libraries')">作品庫管理</button></div><p class="hint">API URL：${esc(state.dashboard.apiPreview)}</p></div>`}
+async function syncDrive(){ $('app').insertAdjacentHTML('afterbegin','<div class="card loading">同步中，作品多時會需要一些時間...</div>'); try{state.dashboard=await run('adminSyncDriveArtworks'); renderDashboard()}catch(e){showErr(e)}}
+function renderSettings(tab){const data=tab==='settings'?state.settings.settings:state.settings.home; const sheetKey=tab==='settings'?'settings':'home'; $('app').innerHTML=`<div class="card"><h2>${tab==='settings'?'網站設定':'首頁設定'}</h2>${Object.entries(data).map(([k,v])=>`<label>${esc(k)}</label><textarea data-k="${esc(k)}">${esc(typeof v==='object'?JSON.stringify(v):v)}</textarea>`).join('')}<button class="btn" onclick="saveKV('${sheetKey}')">儲存設定</button></div>`}
+async function saveKV(sheetKey){const data={}; document.querySelectorAll('[data-k]').forEach(el=>data[el.dataset.k]=el.value); try{await run('adminSaveKeyValue',sheetKey,data); alert('已儲存')}catch(e){showErr(e)}}
+function entityName(tab){return {artworks:'artworks',announcements:'announcements',gallery:'gallery',exhibitions:'exhibitions',history:'history',books:'books',libraries:'libraries'}[tab]}
+function renderList(tab){ $('app').innerHTML=`<div class="card"><h2>${ENTITIES[tab]}管理</h2><div class="toolbar"><button class="btn" onclick="editNew('${tab}')">＋新增</button>${tab==='artworks'?'<button class="btn secondary" onclick="syncDrive()">同步雲端作品</button>':''}${tab==='libraries'?'<button class="btn secondary" onclick="quickLibrary()">快速新增作品庫</button>':''}</div><div>${state.rows.map((r,i)=>rowHtml(tab,r,i)).join('')||'<p class="hint">目前沒有資料</p>'}</div></div>`}
+function rowHtml(tab,r,i){let title=r.titleZh||r.title||r.pageTitle||r.nameZh||r.artworkId||r.id||'(未命名)';let img=r.thumbUrl||r.imageUrl||r.coverUrl||'';return `<div class="row">${img?`<img class="thumb" src="${esc(img)}">`:''}<div class="title">${esc(title)}</div><div class="meta">${esc(r.artworkId||r.id||r.year||'')} ${bool(r.isPublic)?'<span class="pill">公開</span>':'<span class="pill">未公開</span>'} ${bool(r.isHomeHero)?'<span class="pill">輪播</span>':''} ${bool(r.isFeatured)?'<span class="pill">精選</span>':''}</div><button class="btn secondary" onclick="editRow('${tab}',${i})">編輯</button><button class="btn danger" onclick="softDelete('${tab}','${esc(r.artworkId||r.id||r.pageId)}')">下架</button></div>`}
+function editNew(tab){state.editing={}; renderEditor(tab)} function editRow(tab,i){state.editing={...state.rows[i]}; renderEditor(tab)}
+function fieldLabel(f){const m={id:'系統ID id',artworkId:'作品編號 artworkId',titleZh:'中文作品名 titleZh',titleEn:'英文作品名 titleEn',category:'分類 category',subCategory:'子分類 subCategory',authorType:'作者分類 authorType',authorName:'作者姓名 authorName',libraryId:'作品庫ID libraryId',year:'年份 year',size:'尺寸 size',material:'材質 material',medium:'媒材 medium',collectionStatus:'收藏狀態 collectionStatus',priceNote:'公開洽詢文字 priceNote',collectionPrice:'收藏價（後台） collectionPrice',collectionCurrency:'幣別 collectionCurrency',collectionPriceVisibility:'收藏價公開狀態 collectionPriceVisibility',collectionInfoVisibility:'收藏資訊公開狀態 collectionInfoVisibility',collectorName:'收藏者（後台） collectorName',collectionDate:'收藏日期 collectionDate',isSold:'是否售出 isSold',isForSale:'是否可販售 isForSale',allowInquiry:'是否接受洽詢 allowInquiry',allowPrint:'是否接受複製畫委託 allowPrint',description:'作品說明 description',imageUrl:'展示圖網址 imageUrl',thumbUrl:'縮圖網址 thumbUrl',driveFileId:'雲端檔案ID driveFileId',originalFileName:'原始檔名 originalFileName',drivePath:'雲端路徑 drivePath',isHomeHero:'首頁輪播 isHomeHero',isFeatured:'精選作品 isFeatured',isPublic:'是否公開 isPublic',exhibition:'展覽 exhibition',sort:'排序 sort',dataStatus:'資料狀態 dataStatus',seoTitle:'SEO標題 seoTitle',seoDescription:'SEO描述 seoDescription',createdAt:'建立時間 createdAt',updatedAt:'更新時間 updatedAt',libraryName:'作品庫名稱 libraryName',sheetName:'分頁名稱 sheetName',prefix:'作品編號前綴 prefix',driveFolderId:'雲端資料夾ID driveFolderId',driveFolderUrl:'雲端資料夾網址 driveFolderUrl'};return m[f]||f}
+function fieldsFor(tab){return {artworks:['artworkId','titleZh','titleEn','category','subCategory','authorType','authorName','libraryId','year','size','material','medium','collectionStatus','priceNote','collectionPrice','collectionCurrency','collectionPriceVisibility','collectionInfoVisibility','collectorName','collectionDate','isSold','isForSale','allowInquiry','allowPrint','description','imageUrl','thumbUrl','driveFileId','originalFileName','drivePath','isHomeHero','isFeatured','isPublic','exhibition','sort','dataStatus','seoTitle','seoDescription'],libraries:['libraryId','libraryName','sheetName','authorType','authorName','prefix','driveFolderId','driveFolderUrl','description','isActive','isPublic','sort'],announcements:['id','title','date','type','summary','linkText','linkUrl','isPinned','isPublic','sort'],gallery:['id','title','subtitle','period','description','coverArtworkId','isCurrent','isPublic','sort'],exhibitions:['id','year','date','title','location','type','description','isPublic','sort'],history:['id','year','title','type','summary','url','isPublic','sort'],books:['id','title','subtitle','year','publisher','description','coverUrl','linkUrl','isPublic','sort']}[tab]||[]}
+function renderEditor(tab){const r=state.editing||{}; $('app').innerHTML=`<div class="card"><h2>${ENTITIES[tab]}｜編輯</h2>${fieldsFor(tab).map(f=>`<label>${esc(fieldLabel(f))}</label>${f==='description'||f==='summary'||f==='message'?`<textarea data-f="${f}">${esc(r[f]||'')}</textarea>`:`<input data-f="${f}" value="${esc(r[f]||'')}">`}`).join('')}<button class="btn" onclick="saveRecord('${tab}')">儲存</button><button class="btn secondary" onclick="openTab('${tab}')">返回</button></div>`}
+async function saveRecord(tab){const record={};document.querySelectorAll('[data-f]').forEach(el=>record[el.dataset.f]=el.value);try{await run('adminSaveRecord',entityName(tab),record); await openTab(tab)}catch(e){showErr(e)}}
+async function softDelete(tab,id){if(!confirm('確定下架這筆資料？'))return;try{await run('adminSoftDeleteRecord',entityName(tab),id);await openTab(tab)}catch(e){showErr(e)}}
+
+async function quickLibrary(){
+  const libraryName=prompt('作品庫名稱，例如：學生作品庫、收藏品作品庫'); if(!libraryName)return;
+  const prefix=prompt('作品編號前綴，例如 ST、CL、XH','ST'); if(!prefix)return;
+  const authorType=prompt('作者分類，例如：學生、收藏品、畫家','學生')||'';
+  const driveFolderUrl=prompt('雲端資料夾網址，可先留空，之後在作品庫管理填寫','')||'';
+  try{await run('adminCreateArtworkLibrary',{libraryName,sheetName:libraryName,authorType,prefix,driveFolderUrl,isActive:'TRUE',isPublic:'TRUE'}); await openTab('libraries')}catch(e){showErr(e)}
+}
+
+function renderContacts(){ $('app').innerHTML=`<div class="card"><h2>聯絡表單</h2>${state.rows.map((r,i)=>`<div class="row"><div class="title">${esc(r.name||'(未填姓名)')}｜${esc(r.reason||'')}</div><div class="meta">${esc(r.createdAt||'')}｜${esc(r.status||'未處理')}</div><p>${esc(r.message||r.subject||'')}</p><button class="btn secondary" onclick="markContact(${i+2},'已處理')">標記已處理</button></div>`).join('')||'<p class="hint">目前沒有表單資料</p>'}</div>`}
+async function markContact(row,status){try{await run('adminUpdateContactStatus',row,status);await openTab('contacts')}catch(e){showErr(e)}}
+function showErr(e){$('app').insertAdjacentHTML('afterbegin',`<div class="card error">${esc(e.message||e)}</div>`)}
+init();
+</script>
+</body>
+</html>

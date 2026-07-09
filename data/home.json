@@ -1,0 +1,23 @@
+{
+  "hero": {
+    "eyebrow": "Hsieh Hsiu-Ying Art Museum",
+    "title": "謝秀英\n書畫藝術館",
+    "subtitle": "以書畫來美化這個世界，以書畫來安慰人的心靈。",
+    "primaryButton": {"label":"進入線上藝廊", "href":"gallery.html"},
+    "secondaryButton": {"label":"Facebook 粉專", "href":"https://www.facebook.com/XieXiuYing1960/"}
+  },
+  "announcements": [
+    {"date":"2026", "title":"線上藝術館骨架建置", "text":"作品、簡歷、展覽資料將陸續整理成可長期維護的數位藝廊。"},
+    {"date":"近期", "title":"本期線上展規劃中", "text":"可依季節、師生展、全新作品或主題展，定期替換首頁主打內容。"},
+    {"date":"最新", "title":"Facebook 粉專同步", "text":"正式上線後可嵌入最新貼文或活動訊息。"}
+  ],
+  "onlineShow": {
+    "eyebrow":"Online Exhibition",
+    "title":"本期線上展｜墨韻・心香",
+    "period":"展期：2026 / 07 / 01 — 2026 / 09 / 30",
+    "text":"首頁主打展覽區，可定期更換標題、展期與代表作品。",
+    "button":{"label":"立即參觀", "href":"gallery.html"}
+  },
+  "quote": {"text":"一花一草皆佛性，昆蟲飛鳥皆如來。", "author":"謝秀英　無心居士合十"},
+  "facebook": {"title":"粉專最新消息", "text":"此區已預留嵌入式版面，正式上線可放 Facebook Page Plugin。", "button":"前往粉專"}
+}
