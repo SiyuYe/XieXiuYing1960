@@ -4,7 +4,7 @@
   "appsScriptApiUrl": "",
   "brand": {
     "zh": "謝秀英",
-    "en": "Hsieh Hsiu-Ying",
+    "en": "Xie Xiu-Ying",
     "mark": "秀",
     "siteName": "謝秀英書畫藝術館"
   },
@@ -83,5 +83,6 @@
     "其他合作"
   ],
   "adminWriteToken": "",
-  "note": "appsScriptApiUrl 可在 admin/settings.html 設定；正式上線也可直接填在此檔。"
+  "note": "appsScriptApiUrl 可在 admin/settings.html 設定；正式上線也可直接填在此檔。",
+  "showNotice": true
 }

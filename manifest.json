@@ -1,1 +1,21 @@
-{"name":"謝秀英藝術館","short_name":"謝秀英","start_url":"./index.html","display":"standalone","background_color":"#f0f8f8","theme_color":"#6bc2ba","description":"謝秀英書畫藝術館 PWA","icons":[{"src":"assets/icons/icon-192.png","sizes":"192x192","type":"image/png"},{"src":"assets/icons/icon-512.png","sizes":"512x512","type":"image/png"}]}
+{
+  "name": "謝秀英藝術館 CMS_V7_5",
+  "short_name": "謝秀英",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f0f8f8",
+  "theme_color": "#6bc2ba",
+  "description": "謝秀英書畫藝術館 PWA",
+  "icons": [
+    {
+      "src": "assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

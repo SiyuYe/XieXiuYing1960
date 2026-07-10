@@ -174,10 +174,11 @@ function getSettings_() {
   return {
     siteName: kv.siteName || '謝秀英書畫藝術館',
     artistNameZh: kv.artistNameZh || '謝秀英',
-    artistNameEn: kv.artistNameEn || 'Hsieh Hsiu-Ying',
+    artistNameEn: kv.artistNameEn || 'Xie Xiu-Ying',
     artistMark: kv.artistMark || '秀',
     primaryColor: kv.primaryColor || '#6bc2ba',
     facebookUrl: kv.facebookUrl || 'https://www.facebook.com/XieXiuYing1960/',
+    showNotice: bool_(kv.showNotice, true),
     driveFolderUrl: kv.driveFolderUrl || '',
     driveFolderId: kv.driveFolderId || extractDriveId_(kv.driveFolderUrl || ''),
     copyrightText: kv.copyrightText || '本網站作品圖片著作權歸謝秀英所有，未經授權不得下載、轉載、商用或 AI 訓練。',
@@ -190,7 +191,7 @@ function getSettings_() {
 function getHome_() {
   const kv = readKeyValue_(CMS.sheets.home);
   return {
-    heroEyebrow: kv.heroEyebrow || 'HSIEH HSIU-YING ART MUSEUM',
+    heroEyebrow: kv.heroEyebrow || 'XIE XIU-YING ART MUSEUM',
     heroTitle: kv.heroTitle || '謝秀英\n書畫藝術館',
     heroSubtitle: kv.heroSubtitle || '以書畫來美化這個世界，以書畫來安慰人的心靈。',
     heroPrimaryLabel: kv.heroPrimaryLabel || '進入線上藝廊',
@@ -200,7 +201,7 @@ function getHome_() {
     quoteText: kv.quoteText || '一花一草皆佛性，昆蟲飛鳥皆如來。',
     quoteAuthor: kv.quoteAuthor || '謝秀英　無心居士合十',
     facebookTitle: kv.facebookTitle || '粉專最新消息',
-    facebookText: kv.facebookText || '正式上線後可嵌入 Facebook Page Plugin，讓最新貼文在官網中呈現。',
+    facebookText: kv.facebookText || '',
     facebookEmbedEnabled: bool_(kv.facebookEmbedEnabled, false),
     facebookHeight: Number(kv.facebookHeight || 760)
   };
@@ -333,10 +334,11 @@ function createSettingsSheet_(ss) {
     ['key', 'value', 'note'],
     ['siteName', '謝秀英書畫藝術館', '網站名稱'],
     ['artistNameZh', '謝秀英', '中文名'],
-    ['artistNameEn', 'Hsieh Hsiu-Ying', '英文名'],
+    ['artistNameEn', 'Xie Xiu-Ying', '英文名'],
     ['artistMark', '秀', 'LOGO 文字'],
     ['primaryColor', '#6bc2ba', '主題色'],
     ['facebookUrl', 'https://www.facebook.com/XieXiuYing1960/', 'Facebook 粉專'],
+    ['showNotice', 'TRUE', '首頁近期公告開關：TRUE 顯示／FALSE 隱藏'],
     ['driveFolderUrl', 'https://drive.google.com/drive/folders/1dOln1soIngAS4ovEMA9S1HhL39o8HYyq', '作品雲端資料夾 URL'],
     ['driveFolderId', '1dOln1soIngAS4ovEMA9S1HhL39o8HYyq', '作品雲端資料夾 ID'],
     ['copyrightText', '本網站作品圖片著作權歸謝秀英所有，未經授權不得下載、轉載、商用或 AI 訓練。', '版權文字'],
@@ -350,7 +352,7 @@ function createSettingsSheet_(ss) {
 function createHomeSheet_(ss) {
   const rows = [
     ['key', 'value', 'note'],
-    ['heroEyebrow', 'HSIEH HSIU-YING ART MUSEUM', '首頁小標'],
+    ['heroEyebrow', 'XIE XIU-YING ART MUSEUM', '首頁小標'],
     ['heroTitle', '謝秀英\n書畫藝術館', '首頁標題，換行用 \\n'],
     ['heroSubtitle', '以書畫來美化這個世界，以書畫來安慰人的心靈。', '首頁副標'],
     ['heroPrimaryLabel', '進入線上藝廊', '主按鈕文字'],
@@ -360,7 +362,7 @@ function createHomeSheet_(ss) {
     ['quoteText', '一花一草皆佛性，昆蟲飛鳥皆如來。', '畫家語錄'],
     ['quoteAuthor', '謝秀英　無心居士合十', '語錄署名'],
     ['facebookTitle', '粉專最新消息', 'FB 區塊標題'],
-    ['facebookText', '正式上線後可嵌入 Facebook Page Plugin，讓最新貼文在官網中呈現。', 'FB 區塊說明'],
+    ['facebookText', '', 'FB 區塊說明（可留空）'],
     ['facebookEmbedEnabled', 'FALSE', '是否啟用嵌入'],
     ['facebookHeight', '760', 'FB 區塊高度']
   ];
@@ -1869,7 +1871,7 @@ function createMasterDataSheets_(ss) {
 function createArtistsSheet_(ss) {
   const h = ['artistId', 'artistNameZh', 'artistNameEn', 'artistType', 'prefix', 'driveFolderId', 'driveFolderUrl', 'bio', 'avatarUrl', 'isPublic', 'sort', 'createdAt', 'updatedAt'];
   upsertTableKeepData_(ss, CMS.sheets.artists, h, [rowFromRecord_(h, {
-    artistId:'XH', artistNameZh:'謝秀英', artistNameEn:'Hsieh Hsiu-Ying', artistType:'畫家', prefix:'XH',
+    artistId:'XH', artistNameZh:'謝秀英', artistNameEn:'Xie Xiu-Ying', artistType:'畫家', prefix:'XH',
     driveFolderId:'1dOln1soIngAS4ovEMA9S1HhL39o8HYyq', driveFolderUrl:'https://drive.google.com/drive/folders/1dOln1soIngAS4ovEMA9S1HhL39o8HYyq',
     bio:'謝秀英，字馥宇，號無心居士。', isPublic:'TRUE', sort:1, createdAt:isoDate_(), updatedAt:isoDate_()
   })]);

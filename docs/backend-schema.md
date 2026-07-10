@@ -13,7 +13,7 @@
 | key | value |
 |---|---|
 | brandZh | 謝秀英 |
-| brandEn | Hsieh Hsiu-Ying |
+| brandEn | Xie Xiu-Ying |
 | brandMark | 秀 |
 | siteName | 謝秀英書畫藝術館 |
 | facebookUrl | https://www.facebook.com/XieXiuYing1960/ |
@@ -23,7 +23,7 @@
 ### Home
 | key | value |
 |---|---|
-| heroEyebrow | Hsieh Hsiu-Ying Art Museum |
+| heroEyebrow | Xie Xiu-Ying Art Museum |
 | heroTitle | 謝秀英\n書畫藝術館 |
 | heroSubtitle | 以書畫來美化這個世界，以書畫來安慰人的心靈。 |
 | showTitle | 本期線上展｜墨韻・心香 |
