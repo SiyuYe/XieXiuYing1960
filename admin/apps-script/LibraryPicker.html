@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <style>
+    *{box-sizing:border-box}body{font-family:Arial,"Noto Sans TC",sans-serif;margin:0;padding:22px;color:#173f3b;background:#f4fbfa}
+    h2{margin:0 0 8px;font-size:22px}.hint{margin:0 0 18px;color:#56736f;font-size:14px;line-height:1.6}
+    label{display:block;font-weight:700;margin-bottom:7px}select{width:100%;padding:12px;border:1px solid #badbd7;border-radius:12px;background:white;font-size:15px}
+    .info{margin-top:14px;padding:12px;border-radius:12px;background:#e4f5f2;font-size:14px;line-height:1.6;min-height:70px}
+    .actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}button{border:0;border-radius:999px;padding:11px 20px;font-weight:700;cursor:pointer}
+    .cancel{background:white;border:1px solid #c9ddda;color:#315b57}.run{background:#61b8ae;color:white}.run:disabled{opacity:.55;cursor:not-allowed}
+    .status{margin-top:12px;font-size:14px;color:#315b57}.error{color:#b53939}.ok{color:#16735f}
+  </style>
+</head>
+<body>
+  <h2><?= mode === 'duplicate' ? '檢查重複照片' : '同步 Google Drive 作品' ?></h2>
+  <p class="hint">資料來源完全依照「作品庫管理」分頁。一次只處理一個作品庫，避免掃描所有資料夾造成等待過久。</p>
+  <label for="library">選擇作品庫</label>
+  <select id="library"></select>
+  <div id="info" class="info"></div>
+  <div id="status" class="status"></div>
+  <div class="actions">
+    <button class="cancel" onclick="google.script.host.close()">取消</button>
+    <button id="run" class="run" onclick="runAction()"><?= mode === 'duplicate' ? '開始檢查' : '開始同步' ?></button>
+  </div>
+<script>
+const MODE = <?!= JSON.stringify(mode) ?>;
+const LIBRARIES = <?!= librariesJson ?>;
+const select = document.getElementById('library');
+const info = document.getElementById('info');
+const status = document.getElementById('status');
+const runBtn = document.getElementById('run');
+LIBRARIES.forEach(lib => {
+  const option = document.createElement('option');
+  option.value = lib.libraryId;
+  option.textContent = `${lib.libraryName}${lib.authorName ? '｜' + lib.authorName : ''}${lib.ready ? '' : '（設定未完成）'}`;
+  option.disabled = !lib.ready;
+  select.appendChild(option);
+});
+function updateInfo(){
+  const lib = LIBRARIES.find(x => x.libraryId === select.value) || LIBRARIES[0];
+  if(!lib){info.textContent='沒有可用作品庫';runBtn.disabled=true;return;}
+  info.innerHTML = `<b>${escapeHtml(lib.libraryName)}</b><br>作品庫分頁：${escapeHtml(lib.sheetName)}<br>Drive：${lib.driveFolderId ? '已設定' : '尚未設定'}`;
+  runBtn.disabled = !lib.ready;
+}
+function escapeHtml(v){return String(v||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+function runAction(){
+  const id = select.value;
+  if(!id)return;
+  runBtn.disabled=true;select.disabled=true;status.className='status';
+  status.textContent = MODE === 'duplicate' ? '正在檢查，請勿關閉視窗…' : '正在同步，請勿關閉視窗…';
+  google.script.run
+    .withSuccessHandler(result => {
+      status.className='status ok';status.textContent=result.message || '完成';
+      runBtn.textContent='完成';
+      setTimeout(()=>google.script.host.close(),1800);
+    })
+    .withFailureHandler(err => {
+      status.className='status error';status.textContent='失敗：' + (err && err.message ? err.message : err);
+      runBtn.disabled=false;select.disabled=false;
+    })
+    .runArtworkLibraryAction(MODE,id);
+}
+select.addEventListener('change',updateInfo);updateInfo();
+</script>
+</body>
+</html>

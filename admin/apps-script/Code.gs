@@ -3467,3 +3467,355 @@ function saveDisplayOrderV72D_(token, data) {
   writeDisplaySectionV72D_(section, unique);
   return {ok:true, section, savedCount:unique.length, message:'已儲存 '+CMS_DISPLAY_SECTIONS[section].label+' 排序'};
 }
+
+/* =========================================================
+ * CMS v7.4｜作品庫同步與重複檢查精簡版
+ * 2026-07
+ *
+ * 重要規格：
+ * 1. 主選單只保留「指定作品庫同步」與「指定作品庫重複檢查」。
+ * 2. 不再自動建立、升級、重排或格式化作品庫。
+ * 3. 作品庫由使用者手動建立，並於「作品庫管理」登記工作表與 Drive 資料夾。
+ * 4. 同步從最後一筆「系統ID」的下一列開始寫入，優先使用已存在的空白格式列。
+ * 5. 不使用 appendRow、不重建欄位、不清除格式、不破壞下拉選單與公式。
+ * 6. 公式欄位由試算表維護，同步時不寫入：作品類型ID、題材ID、材質ID、媒材ID、收藏狀態ID。
+ * ========================================================= */
+CMS.version = '7.4-library-sync-picker';
+
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('謝秀英藝術館後台')
+    .addItem('從 Google Drive 同步指定作品庫', 'syncDriveArtworks')
+    .addItem('檢查指定作品庫重複照片', 'scanDuplicateArtworkFiles')
+    .addToUi();
+}
+
+/** 開啟作品庫選擇器：同步 */
+function syncDriveArtworks() {
+  return openArtworkLibraryPicker('sync');
+}
+
+/** 開啟作品庫選擇器：重複檢查 */
+function scanDuplicateArtworkFiles() {
+  return openArtworkLibraryPicker('duplicate');
+}
+
+function openArtworkLibraryPicker(mode) {
+  const libs = getArtworkLibrariesForPicker_();
+  if (!libs.length) {
+    SpreadsheetApp.getUi().alert('「作品庫管理」目前沒有可用作品庫。請先手動建立作品庫分頁，並在「作品庫管理」填入作品庫 ID、分頁名稱及 Drive 資料夾網址。');
+    return;
+  }
+  const tpl = HtmlService.createTemplateFromFile('LibraryPicker');
+  tpl.mode = mode === 'duplicate' ? 'duplicate' : 'sync';
+  tpl.librariesJson = JSON.stringify(libs);
+  const title = mode === 'duplicate' ? '選擇要檢查的作品庫' : '選擇要同步的作品庫';
+  SpreadsheetApp.getUi().showModalDialog(tpl.evaluate().setWidth(500).setHeight(410), title);
+}
+
+/** HTML 選擇器呼叫的公開函式 */
+function runArtworkLibraryAction(mode, libraryId) {
+  const lib = findArtworkLibraryById_(libraryId);
+  if (!lib) throw new Error('找不到指定作品庫，請重新開啟選擇器。');
+  if (mode === 'duplicate') return scanDuplicateArtworkLibrary_(lib);
+  return syncArtworkLibraryV74_(lib);
+}
+
+function getArtworkLibrariesForPicker_() {
+  const ss = SpreadsheetApp.getActive();
+  const sheetName = CMS.sheets.artworkLibraries || '作品庫管理';
+  const sh = ss.getSheetByName(sheetName);
+  if (!sh) return [];
+  return readTableFromSheet_(sheetName)
+    .filter(lib => {
+      const active = lib.isActive === '' || lib.isActive == null || truthyV74_(lib.isActive);
+      return active && String(lib.libraryId || '').trim() && String(lib.sheetName || '').trim();
+    })
+    .map(lib => {
+      const folderId = String(lib.driveFolderId || extractDriveId_(lib.driveFolderUrl || '') || '').trim();
+      return {
+        libraryId: String(lib.libraryId || '').trim(),
+        libraryName: String(lib.libraryName || lib.sheetName || '').trim(),
+        sheetName: String(lib.sheetName || '').trim(),
+        authorName: String(lib.authorName || '').trim(),
+        prefix: String(lib.prefix || 'WK').trim().toUpperCase(),
+        driveFolderId: folderId,
+        driveFolderUrl: String(lib.driveFolderUrl || '').trim(),
+        ready: !!(ss.getSheetByName(String(lib.sheetName || '').trim()) && folderId)
+      };
+    });
+}
+
+function findArtworkLibraryById_(libraryId) {
+  const target = String(libraryId || '').trim();
+  const all = getArtworkLibrariesForPicker_();
+  return all.find(lib => lib.libraryId === target) || null;
+}
+
+function truthyV74_(value) {
+  return value === true || String(value || '').toUpperCase() === 'TRUE' || String(value || '') === '1';
+}
+
+/**
+ * 指定作品庫同步。
+ * 不重建表格、不移動欄位、不格式化；從最後一筆系統 ID 的下一列開始。
+ */
+function syncArtworkLibraryV74_(lib) {
+  const ss = SpreadsheetApp.getActive();
+  const sh = ss.getSheetByName(lib.sheetName);
+  if (!sh) throw new Error('找不到作品庫分頁：「' + lib.sheetName + '」。請先手動建立分頁。');
+  const folderId = String(lib.driveFolderId || extractDriveId_(lib.driveFolderUrl || '') || '').trim();
+  if (!folderId) throw new Error('「作品庫管理」尚未填入 Drive 資料夾網址或 ID：' + lib.libraryName);
+  if (sh.getLastColumn() < 1) throw new Error('作品庫分頁沒有欄位標題：' + lib.sheetName);
+
+  const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0].map(v => String(v || '').trim());
+  const hmap = getHeaderIndexMap_(headers);
+  const systemIdCol = hmap.id || hmap.artworkId;
+  if (!systemIdCol) throw new Error('作品庫缺少 id 或 artworkId 欄位，無法判斷最後一筆系統 ID。');
+  if (!hmap.driveFileId) throw new Error('作品庫缺少 driveFileId 欄位，無法避免重複同步。');
+
+  const lastSystemRow = findLastNonBlankRowInColumnV74_(sh, systemIdCol, 3);
+  const startRow = Math.max(3, lastSystemRow + 1);
+  const existingRows = readArtworkRowsToSystemRowV74_(sh, headers, lastSystemRow);
+  const existingFileIds = new Set(existingRows.map(r => String(r.driveFileId || '').trim()).filter(Boolean));
+  const prefix = String(lib.prefix || 'WK').trim().toUpperCase() || 'WK';
+  let nextNo = getNextArtworkNoByPrefix_(existingRows, prefix);
+
+  const folder = DriveApp.getFolderById(folderId);
+  const files = [];
+  collectImageFiles_(folder, '', files);
+  const records = [];
+
+  files.forEach(item => {
+    const file = item.file;
+    const driveFileId = file.getId();
+    if (existingFileIds.has(driveFileId)) return;
+
+    const fileName = file.getName();
+    const cleanTitle = cleanFileName_(fileName);
+    const parts = item.path ? item.path.split('/').filter(Boolean) : [];
+    const firstFolder = parts[0] || '';
+    const secondFolder = parts[1] || '';
+    const artworkId = formatArtworkIdByPrefix_(prefix, nextNo++);
+
+    records.push({
+      id: artworkId,
+      artworkId: artworkId,
+      artistId: prefix,
+      artistName: lib.authorName || '',
+      libraryId: lib.libraryId || '',
+      // ID 對照欄由工作表公式自動產生，這裡只填中文欄位。
+      artworkTypeName: firstFolder || '',
+      subjectNames: secondFolder || '',
+      titleZh: cleanTitle,
+      titleEn: '',
+      year: '',
+      size: '',
+      material: '',
+      medium: '',
+      collectionStatus: '可洽詢',
+      priceNote: '洽詢',
+      collectionPrice: '',
+      collectionCurrency: 'TWD',
+      collectionPriceVisibility: '隱藏',
+      collectionInfoVisibility: '隱藏',
+      collectorName: '',
+      collectionDate: '',
+      isSold: 'FALSE',
+      isForSale: 'TRUE',
+      allowInquiry: 'TRUE',
+      allowPrint: 'FALSE',
+      description: '',
+      imageUrl: driveImageUrl_(driveFileId, CMS.displaySize),
+      thumbUrl: driveImageUrl_(driveFileId, CMS.thumbSize),
+      driveFileId: driveFileId,
+      originalFileName: fileName,
+      drivePath: item.path,
+      fileSize: file.getSize(),
+      mimeType: file.getMimeType(),
+      isHomeHero: 'FALSE',
+      isFeatured: 'FALSE',
+      isPublic: 'TRUE',
+      isGallery: 'FALSE',
+      isShowcase: 'FALSE',
+      exhibition: '',
+      sort: nextNo - 1,
+      dataStatus: '待補資料',
+      seoTitle: '',
+      seoDescription: '',
+      createdAt: isoDate_(),
+      updatedAt: isoDate_()
+    });
+  });
+
+  if (!records.length) {
+    return { ok:true, scanned:files.length, added:0, sheetName:lib.sheetName, message:'同步完成：沒有發現新作品。共掃描 ' + files.length + ' 個圖片檔。' };
+  }
+
+  ensureRowsForSyncV74_(sh, startRow, records.length);
+  writeArtworkRecordsPreservingFormulasV74_(sh, headers, startRow, records);
+  SpreadsheetApp.flush();
+  clearCmsArtworkCachesV74_();
+
+  return {
+    ok:true,
+    scanned:files.length,
+    added:records.length,
+    startRow:startRow,
+    endRow:startRow + records.length - 1,
+    sheetName:lib.sheetName,
+    message:'同步完成：' + lib.libraryName + ' 共掃描 ' + files.length + ' 個圖片檔，從第 ' + startRow + ' 列開始新增 ' + records.length + ' 件作品。'
+  };
+}
+
+function findLastNonBlankRowInColumnV74_(sh, col, startRow) {
+  const maxRows = sh.getMaxRows();
+  if (maxRows < startRow) return startRow - 1;
+  const values = sh.getRange(startRow, col, maxRows - startRow + 1, 1).getDisplayValues();
+  for (let i = values.length - 1; i >= 0; i--) {
+    if (String(values[i][0] || '').trim()) return startRow + i;
+  }
+  return startRow - 1;
+}
+
+function readArtworkRowsToSystemRowV74_(sh, headers, lastSystemRow) {
+  if (lastSystemRow < 3) return [];
+  const values = sh.getRange(3, 1, lastSystemRow - 2, headers.length).getValues();
+  return values.map(row => {
+    const obj = {};
+    headers.forEach((h, i) => { if (h) obj[h] = normalize_(row[i]); });
+    return obj;
+  }).filter(r => String(r.id || r.artworkId || '').trim());
+}
+
+function ensureRowsForSyncV74_(sh, startRow, count) {
+  const requiredLastRow = startRow + count - 1;
+  if (requiredLastRow <= sh.getMaxRows()) return;
+  const addCount = requiredLastRow - sh.getMaxRows();
+  const oldMax = sh.getMaxRows();
+  sh.insertRowsAfter(oldMax, addCount);
+
+  // 只複製格式與資料驗證，不複製任何資料值。
+  const templateRow = Math.max(3, Math.min(startRow - 1, oldMax));
+  if (templateRow >= 3 && sh.getLastColumn() > 0) {
+    const src = sh.getRange(templateRow, 1, 1, sh.getLastColumn());
+    const dst = sh.getRange(oldMax + 1, 1, addCount, sh.getLastColumn());
+    src.copyTo(dst, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+    const validations = src.getDataValidations()[0];
+    dst.setDataValidations(Array.from({length:addCount}, () => validations.slice()));
+  }
+}
+
+function writeArtworkRecordsPreservingFormulasV74_(sh, headers, startRow, records) {
+  // 這些欄位已由使用者在作品庫範本中設定 ARRAYFORMULA／對照公式，絕不可覆寫。
+  const protectedFormulaFields = new Set([
+    'artworkTypeId', 'subjectIds', 'materialId', 'mediumId', 'collectionStatusId'
+  ]);
+
+  const writableCols = [];
+  headers.forEach((h, idx) => {
+    if (!h || protectedFormulaFields.has(h)) return;
+    if (records.some(rec => Object.prototype.hasOwnProperty.call(rec, h))) writableCols.push(idx + 1);
+  });
+  if (!writableCols.length) throw new Error('找不到可寫入欄位。');
+
+  // 將相鄰欄位合併成少量 setValues，既快又不碰公式欄。
+  const groups = [];
+  writableCols.forEach(col => {
+    const last = groups[groups.length - 1];
+    if (last && col === last.end + 1) last.end = col;
+    else groups.push({start:col, end:col});
+  });
+
+  groups.forEach(group => {
+    const width = group.end - group.start + 1;
+    const values = records.map(rec => {
+      const row = [];
+      for (let col = group.start; col <= group.end; col++) {
+        const field = headers[col - 1];
+        row.push(Object.prototype.hasOwnProperty.call(rec, field) ? rec[field] : '');
+      }
+      return row;
+    });
+    sh.getRange(startRow, group.start, records.length, width).setValues(values);
+  });
+}
+
+function clearCmsArtworkCachesV74_() {
+  try {
+    CacheService.getScriptCache().removeAll(['v72a_all_artworks','v72b_admin_meta']);
+  } catch (err) {}
+}
+
+/** 只檢查使用者選擇的單一作品庫。 */
+function scanDuplicateArtworkLibrary_(lib) {
+  const ss = SpreadsheetApp.getActive();
+  const folderId = String(lib.driveFolderId || extractDriveId_(lib.driveFolderUrl || '') || '').trim();
+  if (!folderId) throw new Error('「作品庫管理」尚未填入 Drive 資料夾網址或 ID：' + lib.libraryName);
+
+  const files = [];
+  collectImageFiles_(DriveApp.getFolderById(folderId), '', files);
+  const items = files.map(item => {
+    const f = item.file;
+    return {
+      libraryName:lib.libraryName,
+      drivePath:item.path,
+      fileName:f.getName(),
+      fileId:f.getId(),
+      fileSize:f.getSize(),
+      mimeType:f.getMimeType(),
+      url:'https://drive.google.com/file/d/' + f.getId() + '/view'
+    };
+  });
+
+  const exactGroups = {};
+  items.forEach(it => {
+    const normalizedName = String(it.fileName || '').replace(/\.[^.]+$/,'').replace(/\s|_|-|\(|\)|（|）/g,'').toLowerCase();
+    const key = it.fileSize + '::' + normalizedName;
+    (exactGroups[key] || (exactGroups[key] = [])).push(it);
+  });
+  const sizeGroups = {};
+  items.forEach(it => (sizeGroups[String(it.fileSize)] || (sizeGroups[String(it.fileSize)] = [])).push(it));
+
+  const headers = ['checkedAt','groupKey','reason','libraryName','drivePath','fileName','fileId','fileSize','mimeType','md5','url'];
+  const rows = [];
+  const seen = new Set();
+  Object.keys(exactGroups).forEach(key => {
+    if (exactGroups[key].length <= 1) return;
+    exactGroups[key].forEach(it => {
+      const unique = 'EXACT|' + key + '|' + it.fileId;
+      if (!seen.has(unique)) {
+        seen.add(unique);
+        rows.push([new Date(), key, '檔案大小＋近似檔名相同', it.libraryName, it.drivePath, it.fileName, it.fileId, it.fileSize, it.mimeType, '', it.url]);
+      }
+    });
+  });
+  Object.keys(sizeGroups).forEach(key => {
+    if (sizeGroups[key].length <= 1) return;
+    sizeGroups[key].forEach(it => {
+      const unique = 'SIZE|' + key + '|' + it.fileId;
+      if (!seen.has(unique)) {
+        seen.add(unique);
+        rows.push([new Date(), 'SIZE:' + key, '檔案大小相同，可能是改名重複圖', it.libraryName, it.drivePath, it.fileName, it.fileId, it.fileSize, it.mimeType, '', it.url]);
+      }
+    });
+  });
+
+  let report = ss.getSheetByName(CMS.sheets.duplicateReport || '重複照片檢查');
+  if (!report) report = ss.insertSheet(CMS.sheets.duplicateReport || '重複照片檢查');
+  report.clearContents();
+  report.getRange(1,1,2,headers.length).setValues([headers, headers.map(fieldLabel_)]);
+  if (rows.length) report.getRange(3,1,rows.length,headers.length).setValues(rows);
+  report.setFrozenRows(2);
+  report.getRange(1,1,1,headers.length).setBackground('#6bc2ba').setFontColor('#ffffff').setFontWeight('bold');
+  report.getRange(2,1,1,headers.length).setBackground('#e9f8f6').setFontWeight('bold');
+  SpreadsheetApp.flush();
+
+  return {
+    ok:true,
+    scanned:items.length,
+    duplicateRows:rows.length,
+    sheetName:report.getName(),
+    message:'檢查完成：' + lib.libraryName + ' 共掃描 ' + items.length + ' 個圖片，找到 ' + rows.length + ' 筆疑似重複紀錄。'
+  };
+}

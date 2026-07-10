@@ -6,7 +6,7 @@
   <title>謝秀英藝術館｜Home</title>
   <meta name="description" content="謝秀英書畫藝術館首頁，收錄近期公告、線上展、精選作品與粉專消息。" />
   <meta name="theme-color" content="#6bc2ba" />
-  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="favicon.ico" /><link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body data-page="home">
@@ -38,7 +38,7 @@
       </div>
       <div class="hero-art protected-image reveal visible" data-watermark="謝秀英 Hsieh Hsiu-Ying">
         <button class="slider-btn prev" aria-label="上一張">‹</button><img id="heroImage" src="assets/images/art-placeholder-1.svg" alt="謝秀英精選作品" draggable="false" /><button class="slider-btn next" aria-label="下一張">›</button>
-        <div class="slide-caption"><strong id="heroTitle">沙霜之地</strong><small id="heroMeta">Ink & Color on Paper</small></div>
+        <div class="slide-caption"><strong id="heroTitle"></strong><small id="heroMeta"></small></div>
       </div>
     </section>
 
@@ -64,10 +64,7 @@
 
     <section id="fb" class="home-block fb-card fb-card-large section-snap reveal">
       <div class="fb-info"><p class="eyebrow">Facebook</p><h2>粉專最新消息</h2><p>此區已先預留嵌入式版面，正式上線可放 Facebook Page Plugin，讓粉專最新貼文像公告牆一樣顯示在首頁。</p><a class="btn primary" href="https://www.facebook.com/XieXiuYing1960/" target="_blank" rel="noopener">前往粉專</a></div>
-      <div class="fb-embed-placeholder">
-        <strong>Facebook Page Plugin 預留區</strong>
-        <span>未來可嵌入粉專貼文、展覽公告、招生消息與活動照片。</span>
-      </div>
+      <div id="facebookPosts" class="fb-post-carousel" aria-label="Facebook 最新貼文"></div>
     </section>
   </main>
   <button class="to-top" aria-label="回到頂端">↑</button><script src="api/cms.js"></script>
