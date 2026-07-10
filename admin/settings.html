@@ -1,1 +1,65 @@
-<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>API 設定｜CMS</title><link rel="stylesheet" href="../style.css"><link rel="stylesheet" href="admin.css"></head><body class="admin-page"><main class="admin-card"><h1>API 設定</h1><label class="admin-label">Apps Script Web App URL<textarea id="api" rows="5" placeholder="https://script.google.com/macros/s/.../exec"></textarea></label><label class="admin-label">管理寫入 Token（寫回作品資料用，可先空白）<input id="token" type="password" placeholder="adminWriteToken"></label><div class="admin-actions"><button class="btn primary" id="save">儲存設定</button><button class="btn ghost" id="test">測試連線</button><a class="btn ghost" href="index.html">回後台</a></div><p id="msg" class="admin-status"></p></main><script src="../api/cms.js"></script><script>api.value=XxyCms.getStoredApiUrl();token.value=XxyCms.getAdminToken();save.onclick=()=>{XxyCms.setStoredApiUrl(api.value);XxyCms.setAdminToken(token.value);msg.textContent='已儲存於此瀏覽器。正式上線可再寫入 data/site-config.json。'};test.onclick=async()=>{try{XxyCms.setStoredApiUrl(api.value);XxyCms.setAdminToken(token.value);msg.textContent='檢查中...';const p=await XxyCms.get('ping');msg.textContent='API 已連線：'+(p.version||'OK')+' / '+(p.time||p.updatedAt||'');}catch(e){msg.textContent='連線失敗：'+e.message;}};</script></body></html>
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>API 設定｜CMS v7.3-A2</title>
+<link rel="stylesheet" href="../style.css"><link rel="stylesheet" href="admin.css">
+</head>
+<body class="admin-page">
+<main class="admin-card">
+  <h1>API 設定</h1>
+  <p>API URL 與管理 Token 只保存在目前瀏覽器，不會寫入 GitHub、HTML、JavaScript 或公開 JSON。</p>
+  <div class="settings-status-grid">
+    <div id="apiState" class="settings-status-box bad"><strong>API：未連線</strong><span>尚未檢查</span></div>
+    <div id="tokenState" class="settings-status-box bad"><strong>Token：未設定</strong><span>尚未驗證</span></div>
+  </div>
+  <label class="admin-label">Apps Script Web App URL
+    <textarea id="api" rows="5" placeholder="https://script.google.com/macros/s/.../exec"></textarea>
+  </label>
+  <label class="admin-label">管理寫入 Token
+    <input id="token" type="password" autocomplete="current-password" placeholder="adminWriteToken">
+  </label>
+  <div class="admin-actions">
+    <button class="btn primary" id="save">儲存設定並驗證</button>
+    <button class="btn ghost" id="test">重新測試</button>
+    <a class="btn ghost" id="back" href="index.html">回後台</a>
+  </div>
+  <p id="msg" class="admin-status"></p>
+</main>
+<script src="../api/cms.js"></script>
+<script>
+const params=new URLSearchParams(location.search);
+const returnPage=params.get('return')||'index.html';
+const reason=params.get('reason')||'';
+api.value=XxyCms.getStoredApiUrl();
+token.value=XxyCms.getAdminToken();
+back.href=returnPage;
+if(reason==='missing-api') msg.textContent='請先設定 API URL。';
+else if(reason==='missing-token') msg.textContent='請先設定 adminWriteToken。';
+else if(reason==='invalid-token') msg.textContent='Token 驗證失敗，請重新輸入。';
+else if(reason==='api-error') msg.textContent='API 連線失敗，請確認 Web App URL 與部署狀態。';
+
+function setState(el,title,detail,ok){
+  el.classList.toggle('ok',ok);el.classList.toggle('bad',!ok);
+  el.querySelector('strong').textContent=title;
+  el.querySelector('span').textContent=detail||'';
+}
+async function verify(redirectAfter){
+  XxyCms.setStoredApiUrl(api.value);
+  XxyCms.setAdminToken(token.value);
+  msg.textContent='驗證中…';
+  setState(apiState,'API：檢查中','正在連線',false);
+  setState(tokenState,'Token：檢查中','正在驗證',false);
+  const access=await XxyCms.validateAdminAccess();
+  setState(apiState,access.api?'API：已連線':'API：未連線',access.ping?.version||access.error||'',!!access.api);
+  setState(tokenState,access.token?'Token：已驗證':(XxyCms.getAdminToken()?'Token：驗證失敗':'Token：未設定'),access.token?'可進行寫入':access.error||'',!!access.token);
+  if(!access.ok) throw new Error(access.error||'驗證失敗');
+  msg.textContent='設定已保存於此瀏覽器，API 與 Token 驗證成功。';
+  if(redirectAfter) setTimeout(()=>location.href=returnPage,450);
+}
+save.onclick=async()=>{try{await verify(true);}catch(e){msg.textContent='驗證失敗：'+e.message;}};
+test.onclick=async()=>{try{await verify(false);}catch(e){msg.textContent='驗證失敗：'+e.message;}};
+if(api.value||token.value){verify(false).catch(e=>{msg.textContent='目前設定尚未通過驗證：'+e.message;});}
+</script>
+</body>
+</html>

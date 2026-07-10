@@ -1,10 +1,10 @@
-// 謝秀英書畫藝術館 CMS v7.2-D API client｜統一排序中心
+// 謝秀英書畫藝術館 CMS v7.3-C API client｜Token 自動檢查
 (function(){
   const CONFIG_PATH = '../data/site-config.json';
   const ROOT_CONFIG_PATH = 'data/site-config.json';
   const LOCAL_API_KEY = 'xxy.cms.apiUrl';
   const LOCAL_TOKEN_KEY = 'xxy.cms.adminToken';
-  const CACHE_PREFIX = 'xxy.cms.v72d.';
+  const CACHE_PREFIX = 'xxy.cms.v73b.';
   const MEMORY = new Map();
 
   function qs(name){ return new URLSearchParams(location.search).get(name); }
@@ -16,7 +16,7 @@
 
   async function loadLocalConfig(){
     const path = location.pathname.includes('/admin/') ? CONFIG_PATH : ROOT_CONFIG_PATH;
-    try { const r = await fetch(path + '?v=7.2-D', {cache:'no-store'}); return await r.json(); }
+    try { const r = await fetch(path + '?v=7.3-C', {cache:'no-store'}); return await r.json(); }
     catch(e){ return {}; }
   }
   async function resolveApiUrl(){
@@ -108,9 +108,45 @@
     return get('artwork',{id},Object.assign({cacheMs:5*60*1000},options||{}));
   }
 
+
+  function clearAdminToken(){ localStorage.removeItem(LOCAL_TOKEN_KEY); }
+  function hasApiUrl(){ return !!getStoredApiUrl(); }
+  function hasAdminToken(){ return !!getAdminToken(); }
+
+  async function validateAdminToken(){
+    const api = await resolveApiUrl();
+    if(!api) throw new Error('尚未設定 Apps Script Web App URL');
+    const token = getAdminToken();
+    if(!token) throw new Error('尚未設定 adminWriteToken');
+    const r = await fetch(api, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({action:'adminValidateToken', token})
+    });
+    const res = await r.json();
+    if(!res.ok) throw new Error(res.error || 'Token 驗證失敗');
+    return res;
+  }
+
+  async function validateAdminAccess(){
+    const api = await resolveApiUrl();
+    if(!api) return {ok:false, api:false, token:false, error:'尚未設定 API URL'};
+    try{
+      const ping = await get('ping',{}, {cacheMs:0});
+      const token = getAdminToken();
+      if(!token) return {ok:false, api:true, token:false, ping, error:'尚未設定 adminWriteToken'};
+      const verified = await validateAdminToken();
+      return {ok:true, api:true, token:true, ping, verified};
+    }catch(err){
+      const message = err && err.message ? err.message : String(err);
+      const isApiError = /Failed to fetch|NetworkError|fetch failed/i.test(message);
+      return {ok:false, api:!isApiError, token:false, error:message};
+    }
+  }
+
   window.XxyCms = {
     loadLocalConfig, resolveApiUrl, getStoredApiUrl, setStoredApiUrl,
-    getAdminToken, setAdminToken, get, post, siteBundle,
+    getAdminToken, setAdminToken, clearAdminToken, hasApiUrl, hasAdminToken, validateAdminToken, validateAdminAccess, get, post, siteBundle,
     artworksPage, adminMeta, artwork, batchUpdateArtworks, displayOrder, saveDisplayOrder, clearCache
   };
 })();

@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>統一排序中心｜CMS v7.2-D</title>
+<title>統一排序中心｜CMS v7.3-C</title>
 <link rel="stylesheet" href="../style.css"><link rel="stylesheet" href="admin.css">
 </head>
 <body class="admin-page">
@@ -24,7 +24,7 @@
 <p id="sortMessage" class="admin-status">讀取中…</p>
 <section id="sortList" class="sort-list" aria-live="polite"></section>
 </main>
-<script src="../api/cms.js"></script>
+<script src="../api/cms.js"></script><script src="auth-guard.js"></script>
 <script>
 const list=document.getElementById('sortList'),msg=document.getElementById('sortMessage'),saveBtn=document.getElementById('saveSort');
 let section='homeHero', items=[], dragging=null, dirty=false;
@@ -55,6 +55,6 @@ list.addEventListener('dragover',e=>{e.preventDefault();const over=e.target.clos
 document.querySelectorAll('.sort-tab').forEach(b=>b.onclick=()=>{if(dirty&&!confirm('尚未儲存排序，確定切換嗎？'))return;load(b.dataset.section);});
 saveBtn.onclick=async()=>{saveBtn.disabled=true;msg.textContent='儲存中…';try{const res=await XxyCms.saveDisplayOrder(section,items.map(x=>x.artworkId));dirty=false;msg.textContent=res.message||'已儲存排序';render();}catch(e){msg.innerHTML='<span class="error">儲存失敗：'+esc(e.message)+'</span>';saveBtn.disabled=false;}};
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
-load(section);
+XxyAdminReady.then(()=>load(section));
 </script>
 </body></html>

@@ -140,6 +140,7 @@ function doPost(e) {
 
   try {
     if (body.action === 'contact') return json_(saveContactResponse_(body.data || {}));
+    if (body.action === 'adminValidateToken') return json_(adminValidateToken_(body.token));
     if (body.action === 'adminUpdateArtwork') return json_(adminApiUpdateArtwork_(body.token, body.data || {}));
     if (body.action === 'adminBatchUpdateArtworks') return json_(adminApiBatchUpdateArtworks_(body.token, body.data || {}));
     return json_({ ok: false, error: 'Unknown action' });
@@ -1009,8 +1010,10 @@ function syncDriveArtworks() {
       originalFileName: fileName,
       drivePath: item.path,
       isHomeHero: 'FALSE',
-      isFeatured: 'TRUE',
+      isFeatured: 'FALSE',
       isPublic: 'TRUE',
+      isGallery: 'FALSE',
+      isShowcase: 'FALSE',
       exhibition: '',
       sort: sh.getLastRow() + newRows.length,
       dataStatus: '待補資料',
@@ -1873,13 +1876,14 @@ function createArtistsSheet_(ss) {
 }
 
 function createArtworkTypesSheet_(ss) {
-  const h = ['typeId', 'nameZh', 'nameEn', 'prefixHint', 'description', 'isPublic', 'sort', 'createdAt', 'updatedAt'];
+  const h = ['typeId', 'nameZh', 'nameEn', 'prefixHint', 'description', 'defaultMaterialId', 'defaultMediumIds', 'defaultMediumNames', 'isPublic', 'sort', 'createdAt', 'updatedAt'];
   upsertTableKeepData_(ss, CMS.sheets.artworkTypes, h, [
-    rowFromRecord_(h,{typeId:'GB',nameZh:'工筆',nameEn:'Gongbi',prefixHint:'GB',description:'工筆類作品',isPublic:'TRUE',sort:1,createdAt:isoDate_(),updatedAt:isoDate_()}),
-    rowFromRecord_(h,{typeId:'JC',nameZh:'膠彩',nameEn:'Mineral Pigment / Nihonga',prefixHint:'JC',description:'膠彩類作品',isPublic:'TRUE',sort:2,createdAt:isoDate_(),updatedAt:isoDate_()}),
-    rowFromRecord_(h,{typeId:'XY',nameZh:'寫意',nameEn:'Freehand Ink',prefixHint:'XY',description:'寫意類作品',isPublic:'TRUE',sort:3,createdAt:isoDate_(),updatedAt:isoDate_()}),
-    rowFromRecord_(h,{typeId:'SF',nameZh:'書法',nameEn:'Calligraphy',prefixHint:'SF',description:'書法作品',isPublic:'TRUE',sort:4,createdAt:isoDate_(),updatedAt:isoDate_()}),
-    rowFromRecord_(h,{typeId:'CL',nameZh:'收藏品',nameEn:'Collection',prefixHint:'CL',description:'收藏品、陶藝、文物等',isPublic:'TRUE',sort:5,createdAt:isoDate_(),updatedAt:isoDate_()})
+    rowFromRecord_(h,{typeId:'GB',nameZh:'工筆',nameEn:'Gongbi',prefixHint:'GB',description:'工筆類作品',defaultMaterialId:'ALUM_XUAN',defaultMediumIds:'INK,CHINESE_COLOR,SUIGAN,GLUE',defaultMediumNames:'墨、國畫顏料、水干、膠',isPublic:'TRUE',sort:1,createdAt:isoDate_(),updatedAt:isoDate_()}),
+    rowFromRecord_(h,{typeId:'JC',nameZh:'膠彩',nameEn:'Mineral Pigment Painting',prefixHint:'JC',description:'膠彩類作品',defaultMaterialId:'SILK',defaultMediumIds:'MINERAL,SUIGAN,GLUE',defaultMediumNames:'礦岩、水干、膠',isPublic:'TRUE',sort:2,createdAt:isoDate_(),updatedAt:isoDate_()}),
+    rowFromRecord_(h,{typeId:'XY',nameZh:'寫意',nameEn:'Freehand Ink Painting',prefixHint:'XY',description:'寫意類作品',defaultMaterialId:'XUAN',defaultMediumIds:'INK,CHINESE_COLOR',defaultMediumNames:'墨、國畫顏料',isPublic:'TRUE',sort:3,createdAt:isoDate_(),updatedAt:isoDate_()}),
+    rowFromRecord_(h,{typeId:'SF',nameZh:'書法',nameEn:'Calligraphy',prefixHint:'SF',description:'書法作品',defaultMaterialId:'XUAN',defaultMediumIds:'INK',defaultMediumNames:'墨',isPublic:'TRUE',sort:4,createdAt:isoDate_(),updatedAt:isoDate_()}),
+    rowFromRecord_(h,{typeId:'CL',nameZh:'收藏品',nameEn:'Collection',prefixHint:'CL',description:'收藏品、文物等',defaultMaterialId:'',defaultMediumIds:'',defaultMediumNames:'',isPublic:'TRUE',sort:5,createdAt:isoDate_(),updatedAt:isoDate_()}),
+    rowFromRecord_(h,{typeId:'CER',nameZh:'陶藝',nameEn:'Ceramics',prefixHint:'CER',description:'陶藝作品',defaultMaterialId:'CERAMIC',defaultMediumIds:'',defaultMediumNames:'',isPublic:'TRUE',sort:6,createdAt:isoDate_(),updatedAt:isoDate_()})
   ]);
 }
 
@@ -1899,21 +1903,24 @@ function createArtworkSubjectsSheet_(ss) {
 function createMediaSheet_(ss) {
   const h = ['mediumId', 'nameZh', 'nameEn', 'description', 'isPublic', 'sort', 'createdAt', 'updatedAt'];
   upsertTableKeepData_(ss, CMS.sheets.media, h, [
-    rowFromRecord_(h,{mediumId:'INK',nameZh:'水墨',nameEn:'Ink',isPublic:'TRUE',sort:1,createdAt:isoDate_(),updatedAt:isoDate_()}),
-    rowFromRecord_(h,{mediumId:'COLOR_INK',nameZh:'彩墨',nameEn:'Ink and Color',isPublic:'TRUE',sort:2,createdAt:isoDate_(),updatedAt:isoDate_()}),
-    rowFromRecord_(h,{mediumId:'MINERAL',nameZh:'膠彩',nameEn:'Mineral Pigment',isPublic:'TRUE',sort:3,createdAt:isoDate_(),updatedAt:isoDate_()}),
-    rowFromRecord_(h,{mediumId:'CALLIGRAPHY',nameZh:'書法',nameEn:'Calligraphy',isPublic:'TRUE',sort:4,createdAt:isoDate_(),updatedAt:isoDate_()}),
-    rowFromRecord_(h,{mediumId:'CERAMIC',nameZh:'陶藝',nameEn:'Ceramics',isPublic:'TRUE',sort:5,createdAt:isoDate_(),updatedAt:isoDate_()})
+    rowFromRecord_(h,{mediumId:'INK',nameZh:'墨',nameEn:'Chinese Ink',description:'書畫用墨汁或墨條研墨',isPublic:'TRUE',sort:1,createdAt:isoDate_(),updatedAt:isoDate_()}),
+    rowFromRecord_(h,{mediumId:'MINERAL',nameZh:'礦岩',nameEn:'Mineral Pigment',description:'天然或人工礦物顏料',isPublic:'TRUE',sort:2,createdAt:isoDate_(),updatedAt:isoDate_()}),
+    rowFromRecord_(h,{mediumId:'SUIGAN',nameZh:'水干',nameEn:'Suigan Pigment',description:'水干顏料',isPublic:'TRUE',sort:3,createdAt:isoDate_(),updatedAt:isoDate_()}),
+    rowFromRecord_(h,{mediumId:'GLUE',nameZh:'膠',nameEn:'Animal Glue',description:'膠彩用膠媒介',isPublic:'TRUE',sort:4,createdAt:isoDate_(),updatedAt:isoDate_()}),
+    rowFromRecord_(h,{mediumId:'CHINESE_COLOR',nameZh:'國畫顏料',nameEn:'Chinese Painting Pigment',description:'國畫用顏料',isPublic:'TRUE',sort:5,createdAt:isoDate_(),updatedAt:isoDate_()}),
+    rowFromRecord_(h,{mediumId:'WATERCOLOR',nameZh:'水彩顏料',nameEn:'Watercolor Pigment',description:'水彩顏料',isPublic:'TRUE',sort:6,createdAt:isoDate_(),updatedAt:isoDate_()})
   ]);
 }
 
 function createMaterialsSheet_(ss) {
   const h = ['materialId', 'nameZh', 'nameEn', 'description', 'isPublic', 'sort', 'createdAt', 'updatedAt'];
   upsertTableKeepData_(ss, CMS.sheets.materials, h, [
-    rowFromRecord_(h,{materialId:'PAPER',nameZh:'紙本',nameEn:'Paper',isPublic:'TRUE',sort:1,createdAt:isoDate_(),updatedAt:isoDate_()}),
-    rowFromRecord_(h,{materialId:'SILK',nameZh:'絹本',nameEn:'Silk',isPublic:'TRUE',sort:2,createdAt:isoDate_(),updatedAt:isoDate_()}),
-    rowFromRecord_(h,{materialId:'CANVAS',nameZh:'畫布',nameEn:'Canvas',isPublic:'TRUE',sort:3,createdAt:isoDate_(),updatedAt:isoDate_()}),
-    rowFromRecord_(h,{materialId:'CERAMIC',nameZh:'陶瓷',nameEn:'Ceramic',isPublic:'TRUE',sort:4,createdAt:isoDate_(),updatedAt:isoDate_()})
+    rowFromRecord_(h,{materialId:'PAPER',nameZh:'紙本',nameEn:'Paper',description:'一般紙本',isPublic:'TRUE',sort:1,createdAt:isoDate_(),updatedAt:isoDate_()}),
+    rowFromRecord_(h,{materialId:'XUAN',nameZh:'宣紙',nameEn:'Xuan Paper',description:'宣紙',isPublic:'TRUE',sort:2,createdAt:isoDate_(),updatedAt:isoDate_()}),
+    rowFromRecord_(h,{materialId:'ALUM_XUAN',nameZh:'礬宣紙',nameEn:'Alum-sized Xuan Paper',description:'經礬處理的宣紙',isPublic:'TRUE',sort:3,createdAt:isoDate_(),updatedAt:isoDate_()}),
+    rowFromRecord_(h,{materialId:'SILK',nameZh:'絹布',nameEn:'Silk',description:'絹布／絹本',isPublic:'TRUE',sort:4,createdAt:isoDate_(),updatedAt:isoDate_()}),
+    rowFromRecord_(h,{materialId:'CANVAS',nameZh:'畫布',nameEn:'Canvas',description:'畫布',isPublic:'TRUE',sort:5,createdAt:isoDate_(),updatedAt:isoDate_()}),
+    rowFromRecord_(h,{materialId:'CERAMIC',nameZh:'陶瓷',nameEn:'Ceramic',description:'陶瓷材質',isPublic:'TRUE',sort:6,createdAt:isoDate_(),updatedAt:isoDate_()})
   ]);
 }
 
@@ -2305,8 +2312,10 @@ function syncArtworkLibrary_(lib) {
       fileSize: file.getSize(),
       mimeType: file.getMimeType(),
       isHomeHero: 'FALSE',
-      isFeatured: 'TRUE',
+      isFeatured: 'FALSE',
       isPublic: 'TRUE',
+      isGallery: 'FALSE',
+      isShowcase: 'FALSE',
       exhibition: '',
       sort: sh.getLastRow() + newRows.length,
       dataStatus: '待補資料',
@@ -2631,8 +2640,10 @@ function syncArtworkLibrary_(lib) {
       fileSize: file.getSize(),
       mimeType: file.getMimeType(),
       isHomeHero: 'FALSE',
-      isFeatured: 'TRUE',
+      isFeatured: 'FALSE',
       isPublic: 'TRUE',
+      isGallery: 'FALSE',
+      isShowcase: 'FALSE',
       exhibition: '',
       sort: sh.getLastRow() + newRows.length,
       dataStatus: '待補資料',
@@ -2668,6 +2679,7 @@ function onOpen() {
     .addItem('① 從 Google Drive 同步作品清單', 'syncDriveArtworks')
     .addItem('② 升級/重排所有作品庫欄位', 'upgradeArtworkSheetV6')
     .addItem('③ 建立/更新主資料表', 'createMasterDataSheetsMenu')
+    .addItem('③-1 升級智慧媒材字典（不更動作品）', 'upgradeSmartMediaV73B')
     .addItem('④ 檢查重複照片', 'scanDuplicateArtworkFiles')
     .addItem('⑤ 重新套用表格格式與欄寬', 'formatMuseumCms')
     .addSeparator()
@@ -2826,6 +2838,7 @@ function onOpen() {
     .addItem('① 從 Google Drive 同步作品清單', 'syncDriveArtworks')
     .addItem('② 升級/重排所有作品庫欄位（不重刷格式）', 'upgradeArtworkSheetV6')
     .addItem('③ 建立/更新主資料表', 'createMasterDataSheetsMenu')
+    .addItem('③-1 升級智慧媒材字典（不更動作品）', 'upgradeSmartMediaV73B')
     .addItem('④ 檢查重複照片', 'scanDuplicateArtworkFiles')
     .addSeparator()
     .addItem('⑤ 格式化目前分頁', 'formatActiveSheetOnly')
@@ -2933,6 +2946,40 @@ function applyArtworkColumnWidthsSafe_(sh) {
 }
 
 
+
+/**
+ * CMS v7.3-B｜智慧媒材主資料升級
+ * 只重建「媒材管理」字典並補齊作品類型預設對照；不修改任何作品資料。
+ */
+function upgradeSmartMediaV73B() {
+  const ss = SpreadsheetApp.getActive();
+  const mediaName = CMS.sheets.media;
+  let mediaSheet = ss.getSheetByName(mediaName);
+  if (!mediaSheet) mediaSheet = ss.insertSheet(mediaName);
+  mediaSheet.clear();
+  const h = ['mediumId', 'nameZh', 'nameEn', 'description', 'isPublic', 'sort', 'createdAt', 'updatedAt'];
+  const rows = [
+    {mediumId:'INK',nameZh:'墨',nameEn:'Chinese Ink',description:'書畫用墨汁或墨條研墨',isPublic:'TRUE',sort:1},
+    {mediumId:'MINERAL',nameZh:'礦岩',nameEn:'Mineral Pigment',description:'天然或人工礦物顏料',isPublic:'TRUE',sort:2},
+    {mediumId:'SUIGAN',nameZh:'水干',nameEn:'Suigan Pigment',description:'水干顏料',isPublic:'TRUE',sort:3},
+    {mediumId:'GLUE',nameZh:'膠',nameEn:'Animal Glue',description:'膠彩用膠媒介',isPublic:'TRUE',sort:4},
+    {mediumId:'CHINESE_COLOR',nameZh:'國畫顏料',nameEn:'Chinese Painting Pigment',description:'國畫用顏料',isPublic:'TRUE',sort:5},
+    {mediumId:'WATERCOLOR',nameZh:'水彩顏料',nameEn:'Watercolor Pigment',description:'水彩顏料',isPublic:'TRUE',sort:6}
+  ].map(r => rowFromRecord_(h, Object.assign(r,{createdAt:isoDate_(),updatedAt:isoDate_()})));
+  mediaSheet.getRange(1,1,1,h.length).setValues([h]);
+  mediaSheet.getRange(2,1,1,h.length).setValues([h.map(x => ({mediumId:'媒材ID',nameZh:'中文名稱',nameEn:'英文名稱',description:'說明',isPublic:'是否啟用',sort:'排序',createdAt:'建立日期',updatedAt:'更新日期'}[x] || x))]);
+  mediaSheet.getRange(3,1,rows.length,h.length).setValues(rows);
+  mediaSheet.setFrozenRows(2);
+  mediaSheet.getRange(1,1,1,h.length).setBackground('#6bc2ba').setFontColor('#ffffff').setFontWeight('bold');
+  mediaSheet.getRange(2,1,1,h.length).setBackground('#dff2ef').setFontWeight('bold');
+
+  createArtworkTypesSheet_(ss);
+  createMaterialsSheet_(ss);
+  CacheService.getScriptCache().removeAll(['v72b_admin_meta','v72a_all_artworks']);
+  SpreadsheetApp.flush();
+  SpreadsheetApp.getUi().alert('完成：智慧媒材字典與作品類型預設對照已更新。現有作品的媒材資料完全沒有被更動。');
+}
+
 /* =========================================================
  * CMS v7｜官網後台 API 寫入支援
  * - adminUpdateArtwork：更新單筆作品資料
@@ -2946,6 +2993,10 @@ function assertAdminToken_(token) {
   const saved = getAdminWriteToken_();
   if (!saved) throw new Error('尚未設定 adminWriteToken。請先在「網站設定」新增 adminWriteToken 後再開放寫入。');
   if (String(token || '').trim() !== saved) throw new Error('管理 Token 錯誤，拒絕寫入。');
+}
+function adminValidateToken_(token) {
+  assertAdminToken_(token);
+  return { ok:true, valid:true, version:CMS.version, verifiedAt:isoNow_() };
 }
 function adminApiUpdateArtwork_(token, data) {
   assertAdminToken_(token);
@@ -3268,7 +3319,7 @@ function lightArtworkV72_(a) {
  * - 已勾選作品一定有順位；新勾選作品自動補到最後
  * - 排序中心只允許拖曳／上下移動，不開放手填順位
  * ========================================================= */
-CMS.version = '7.2-D-unified-sort';
+CMS.version = '7.3-C-excel-manager';
 CMS.sheets.displayConfig = '網站展示配置';
 
 const CMS_DISPLAY_SECTIONS = {
@@ -3308,6 +3359,7 @@ function doPost(e) {
   catch (err) { return json_({ ok:false, error:'JSON 格式錯誤' }); }
   try {
     if (body.action === 'contact') return json_(saveContactResponse_(body.data || {}));
+    if (body.action === 'adminValidateToken') return json_(adminValidateToken_(body.token));
     if (body.action === 'adminUpdateArtwork') return json_(adminApiUpdateArtwork_(body.token, body.data || {}));
     if (body.action === 'adminBatchUpdateArtworks') return json_(adminApiBatchUpdateArtworks_(body.token, body.data || {}));
     if (body.action === 'saveDisplayOrder') return json_(saveDisplayOrderV72D_(body.token, body.data || {}));

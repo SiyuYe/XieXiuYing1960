@@ -2,13 +2,13 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>作品管理｜CMS v7.2-D</title>
+<title>作品管理｜CMS v7.3-C</title>
 <link rel="stylesheet" href="../style.css"><link rel="stylesheet" href="admin.css">
 </head>
 <body class="admin-page">
 <main class="admin-wide admin-sheet-page">
 <header class="admin-top">
-  <div><h1>作品管理</h1><p>CMS v7.2-D：卡片瀏覽＋單頁試算表管理＋勾選批次管理；展示排序請到統一排序中心。</p></div>
+  <div><h1>作品管理</h1><p>CMS v7.3-C：Excel 式管理、批次修改與共用主資料下拉選單。</p></div>
   <div><a class="btn ghost" href="sort.html">排序中心</a><a class="btn ghost" href="settings.html">API設定</a><a class="btn ghost" href="index.html">後台首頁</a></div>
 </header>
 
@@ -21,6 +21,7 @@
       <option value="featured">精選</option><option value="hero">首頁輪播</option>
       <option value="public">公開作品</option><option value="hidden">隱藏作品</option><option value="gallery">線上藝廊</option><option value="showcase">作品展示</option>
     </select>
+    <button id="refreshMasterData" class="mode-btn" type="button" title="重新讀取作品類型、題材、材質、媒材與收藏狀態">重新整理選單</button>
     <div class="view-switch" role="group" aria-label="顯示模式">
       <button id="cardMode" class="mode-btn active" type="button">卡片</button>
       <button id="sheetMode" class="mode-btn" type="button">資料表</button>
@@ -46,7 +47,7 @@
     </div>
     <div class="batch-group batch-master"><span>批次修改固定資料</span>
       <select id="batchField"><option value="">選擇欄位</option><option value="artworkTypeId">作品類型</option><option value="subjectIds">題材</option><option value="materialId">材質</option><option value="mediumId">媒材</option><option value="collectionStatusId">收藏狀態</option></select>
-      <select id="batchValue" disabled><option value="">請先選欄位</option></select>
+      <select id="batchValue" disabled><option value="">請先選欄位</option></select><button id="batchMediumValue" class="medium-picker-btn" type="button" hidden data-value="">選擇媒材</button>
       <button id="applyBatchMaster" type="button" class="primary-batch">套用到已選作品</button>
     </div>
   </div>
@@ -60,9 +61,36 @@
 </section>
 
 <section id="sheetView" hidden>
-  <div class="sheet-help">可直接修改文字與下拉選單；每列按「儲存」寫回 Google 試算表。固定資料只顯示中文，ID 由系統自動保存。</div>
+  <div class="sheet-save-toolbar">
+    <div>
+      <strong>資料表大量編輯</strong>
+      <span id="dirtySummary">目前沒有尚未儲存的修改</span>
+    </div>
+    <div class="sheet-save-actions">
+      <span id="saveAllProgress" aria-live="polite"></span>
+      <button id="saveAllRows" class="btn primary save-all-btn" type="button" disabled>全部儲存</button>
+    </div>
+  </div>
+  <div class="sheet-help">可直接修改文字與下拉選單；右上角「全部儲存」會一次處理所有已修改列，每列原本的「儲存」仍可單獨使用。固定資料只顯示中文，ID 由系統自動保存。</div>
   <div class="sheet-wrap">
     <table class="artwork-sheet" id="artworkSheet">
+      <colgroup>
+        <col class="col-select">
+        <col class="col-thumb">
+        <col class="col-artwork-id">
+        <col class="col-title-zh">
+        <col class="col-title-en">
+        <col class="col-year">
+        <col class="col-size">
+        <col class="col-artwork-type">
+        <col class="col-subject">
+        <col class="col-material">
+        <col class="col-medium">
+        <col class="col-collection-status">
+        <col class="col-check"><col class="col-check"><col class="col-check"><col class="col-check"><col class="col-check">
+        <col class="col-data-status">
+        <col class="col-action">
+      </colgroup>
       <thead><tr>
         <th class="sticky-col select-col"><input id="selectAllLoaded" type="checkbox" aria-label="全選目前已載入作品"></th><th class="thumb-col">縮圖</th><th>作品編號</th><th>中文作品名</th><th>英文作品名</th>
         <th>年份</th><th>尺寸</th><th>作品類型</th><th>題材</th><th>材質</th><th>媒材</th>
@@ -92,7 +120,7 @@
       <label>作品類型<select name="artworkTypeId"></select></label>
       <label>題材<select name="subjectIds"></select></label>
       <label>材質<select name="materialId"></select></label>
-      <label>媒材<select name="mediumId"></select></label>
+      <label>媒材<div class="medium-field"><button class="medium-picker-btn" id="drawerMediumButton" type="button">選擇媒材</button><input type="hidden" name="mediumId"></div></label>
       <label>收藏狀態<select name="collectionStatusId"></select></label>
       <label>幣別<select name="collectionCurrency"></select></label>
     </div>
@@ -108,7 +136,16 @@
   </form>
 </aside>
 
-<script src="../api/cms.js"></script>
+
+<div id="mediumModal" class="medium-modal" hidden>
+  <div class="medium-modal-backdrop" data-medium-close></div>
+  <section class="medium-dialog" role="dialog" aria-modal="true" aria-labelledby="mediumDialogTitle">
+    <header><div><small>Medium</small><h2 id="mediumDialogTitle">選擇媒材</h2></div><button type="button" class="drawer-close" data-medium-close>×</button></header>
+    <div id="mediumChoices" class="medium-choices"></div>
+    <footer><button id="mediumCancel" class="btn ghost" type="button">取消</button><button id="mediumApply" class="btn primary" type="button">套用勾選</button></footer>
+  </section>
+</div>
+<script src="../api/cms.js"></script><script src="auth-guard.js"></script>
 <script>
 const PAGE_SIZE=24;
 let page=1, loading=false, hasMore=true, requestSeq=0, controller=null, meta=null;
@@ -116,11 +153,15 @@ let currentMode=localStorage.getItem('xxy.cms.workMode')||'card';
 const state={q:'',filter:'',libraryId:'',artistId:''};
 const loaded=new Map();
 const selected=new Set();
+const dirtyRows=new Set();
+let saveAllRunning=false;
 const grid=document.getElementById('grid'), summary=document.getElementById('summary');
 const more=document.getElementById('more'), sheetMore=document.getElementById('sheetMore');
 const sheetBody=document.getElementById('sheetBody');
 const drawer=document.getElementById('drawer'), backdrop=document.getElementById('drawerBackdrop');
 const drawerForm=document.getElementById('drawerForm'), drawerLoading=document.getElementById('drawerLoading');
+const mediumModal=document.getElementById('mediumModal'),mediumChoices=document.getElementById('mediumChoices');
+let mediumTarget=null,mediumDraft=new Set(),drawerOriginalType='';
 function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
 function bool(v){return v===true||String(v||'').toUpperCase()==='TRUE'||String(v||'')==='是';}
 function img(a){return a.thumbUrl||a.imageUrl||'../assets/images/art-placeholder-1.svg';}
@@ -139,6 +180,12 @@ function card(a){
 function selectCell(name,rows,idKey,nameKey,value,id){
  return `<select data-field="${name}" data-id="${esc(id)}">${optionHtml(rows,idKey,nameKey,value)}</select>`;
 }
+function splitIds(value){return String(value||'').split(/[,、;|]/).map(v=>v.trim()).filter(Boolean);}
+function mediumNames(ids){const wanted=new Set(splitIds(ids));return (meta?.media||[]).filter(r=>wanted.has(String(r.mediumId))).map(r=>r.nameZh||r.mediumId);}
+function mediumCell(ids,names,id){
+ const label=mediumNames(ids).join('、')||String(names||'').trim()||'選擇媒材';
+ return `<button type="button" class="medium-picker-btn table-medium" data-medium-picker data-id="${esc(id)}" data-field="mediumId" data-value="${esc(splitIds(ids).join(','))}">${esc(label)}</button>`;
+}
 function rowHtml(a){
  const id=a.artworkId||a.id||'';
  return `<tr data-id="${esc(id)}">
@@ -149,10 +196,10 @@ function rowHtml(a){
   <td><input data-field="titleEn" value="${esc(a.titleEn||'')}"></td>
   <td><input class="small-input" data-field="year" value="${esc(a.year||'')}"></td>
   <td><input data-field="size" value="${esc(a.size||'')}"></td>
-  <td>${selectCell('artworkTypeId',meta.artworkTypes,'typeId','nameZh',a.artworkTypeId,id)}</td>
+  <td><select data-field="artworkTypeId" data-id="${esc(id)}" data-original-type="${esc(a.artworkTypeId||'')}">${optionHtml(meta.artworkTypes,'typeId','nameZh',a.artworkTypeId)}</select></td>
   <td>${selectCell('subjectIds',meta.subjects,'subjectId','nameZh',a.subjectIds,id)}</td>
   <td>${selectCell('materialId',meta.materials,'materialId','nameZh',a.materialId,id)}</td>
-  <td>${selectCell('mediumId',meta.media,'mediumId','nameZh',a.mediumId,id)}</td>
+  <td>${mediumCell(a.mediumId,a.medium,id)}</td>
   <td>${selectCell('collectionStatusId',meta.collectionStatuses,'statusId','nameZh',a.collectionStatusId,id)}</td>
   <td class="check-cell"><input type="checkbox" data-field="isPublic" ${bool(a.isPublic)?'checked':''}></td>
   <td class="check-cell"><input type="checkbox" data-field="isHomeHero" ${bool(a.isHomeHero)?'checked':''}></td>
@@ -163,6 +210,58 @@ function rowHtml(a){
   <td><button class="row-save" type="button">儲存</button></td>
  </tr>`;
 }
+function rowPayload(tr){
+ const payload={artworkId:tr.dataset.id};
+ tr.querySelectorAll('[data-field]').forEach(el=>{payload[el.dataset.field]=el.type==='checkbox'?el.checked:(el.dataset.mediumPicker!==undefined?String(el.dataset.value||''):el.value);});
+ return payload;
+}
+function markRowDirty(tr,isDirty=true){
+ if(!tr||!tr.dataset.id)return;
+ const id=tr.dataset.id;
+ if(isDirty){dirtyRows.add(id);tr.classList.add('row-dirty');}
+ else{dirtyRows.delete(id);tr.classList.remove('row-dirty');}
+ updateDirtyUi();
+}
+function updateDirtyUi(){
+ const count=dirtyRows.size;
+ const btn=document.getElementById('saveAllRows');
+ const summary=document.getElementById('dirtySummary');
+ if(btn){btn.disabled=count===0||saveAllRunning;btn.textContent=count?`全部儲存 (${count})`:'全部儲存';}
+ if(summary)summary.textContent=count?`尚有 ${count} 列修改未儲存`:'目前沒有尚未儲存的修改';
+}
+async function saveAllDirtyRows(){
+ if(saveAllRunning||dirtyRows.size===0)return;
+ const ids=[...dirtyRows];
+ const btn=document.getElementById('saveAllRows');
+ const progress=document.getElementById('saveAllProgress');
+ saveAllRunning=true;updateDirtyUi();
+ let done=0,failed=0;
+ try{
+   for(const id of ids){
+     const tr=sheetBody.querySelector(`tr[data-id="${CSS.escape(id)}"]`);
+     if(!tr){dirtyRows.delete(id);continue;}
+     done++;
+     progress.textContent=`正在儲存 ${done}/${ids.length}`;
+     tr.classList.add('row-saving');
+     try{
+       await savePayload(rowPayload(tr));
+       markRowDirty(tr,false);
+       tr.classList.remove('row-save-error');
+       tr.classList.add('row-saved');
+       setTimeout(()=>tr.classList.remove('row-saved'),1200);
+     }catch(err){
+       failed++;
+       tr.classList.add('row-save-error');
+     }finally{tr.classList.remove('row-saving');}
+   }
+   XxyCms.clearCache();
+   progress.textContent=failed?`完成：成功 ${ids.length-failed} 列，失敗 ${failed} 列`:`全部完成，共儲存 ${ids.length} 列`;
+   if(failed)alert(`全部儲存完成，但有 ${failed} 列失敗。失敗列已保留紅色標記，可修正後再按全部儲存。`);
+ }finally{
+   saveAllRunning=false;updateDirtyUi();
+   setTimeout(()=>{if(progress&&!saveAllRunning)progress.textContent='';},3500);
+ }
+}
 function params(){return {page,pageSize:PAGE_SIZE,q:state.q,filter:state.filter,libraryId:state.libraryId,artistId:state.artistId};}
 async function ensureMeta(){
  if(meta)return meta;
@@ -172,9 +271,21 @@ async function ensureMeta(){
  lib.innerHTML='<option value="">全部作者／作品庫</option>'+data.libraries.map(x=>`<option value="${esc(x.libraryId)}">${esc(x.authorName||x.libraryName)}｜${esc(x.libraryName)}</option>`).join('');
  return meta;
 }
+async function refreshMasterData(){
+ const btn=document.getElementById('refreshMasterData');
+ btn.disabled=true;btn.textContent='更新中…';
+ try{
+   XxyCms.clearCache();meta=null;
+   await ensureMeta();
+   batchField.dispatchEvent(new Event('change'));
+   await load(true);
+   summary.textContent='下拉選單已從主資料表重新載入';
+ }catch(err){alert('重新整理選單失敗：'+err.message);}
+ finally{btn.disabled=false;btn.textContent='重新整理選單';}
+}
 async function load(reset){
  if(loading)return;
- if(reset){page=1;hasMore=true;grid.innerHTML='';sheetBody.innerHTML='';loaded.clear();clearSelection();}
+ if(reset){page=1;hasMore=true;grid.innerHTML='';sheetBody.innerHTML='';loaded.clear();dirtyRows.clear();updateDirtyUi();clearSelection();}
  if(!hasMore)return;
  loading=true;more.hidden=true;sheetMore.hidden=true;summary.textContent='讀取中…';
  const seq=++requestSeq;if(controller)controller.abort();controller=new AbortController();
@@ -203,7 +314,7 @@ async function openDrawer(id){
  drawerLoading.hidden=false;drawerForm.hidden=true;drawerLoading.textContent='讀取中…';
  try{
   await ensureMeta();const res=await XxyCms.artwork(id,{cacheMs:300000});const a=res.artwork;
-  drawerLoading.hidden=true;drawerForm.hidden=false;drawerForm.dataset.id=id;
+  drawerLoading.hidden=true;drawerForm.hidden=false;drawerForm.dataset.id=id;drawerOriginalType=String(a.artworkTypeId||'');
   document.getElementById('drawerId').textContent=id+'｜'+(a.artistName||'');
   document.getElementById('drawerTitle').textContent=a.titleZh||a.originalFileName||'作品資料';
   document.getElementById('drawerImage').src=a.imageUrl||a.thumbUrl||'../assets/images/art-placeholder-1.svg';
@@ -212,7 +323,7 @@ async function openDrawer(id){
   fillSelect(drawerForm.elements.artworkTypeId,meta.artworkTypes,'typeId','nameZh',a.artworkTypeId);
   fillSelect(drawerForm.elements.subjectIds,meta.subjects,'subjectId','nameZh',a.subjectIds);
   fillSelect(drawerForm.elements.materialId,meta.materials,'materialId','nameZh',a.materialId);
-  fillSelect(drawerForm.elements.mediumId,meta.media,'mediumId','nameZh',a.mediumId);
+  drawerForm.elements.mediumId.value=splitIds(a.mediumId).join(',');updateMediumButton(document.getElementById('drawerMediumButton'),drawerForm.elements.mediumId.value,a.medium);
   fillSelect(drawerForm.elements.collectionStatusId,meta.collectionStatuses,'statusId','nameZh',a.collectionStatusId);
   fillSelect(drawerForm.elements.collectionCurrency,meta.currencies,'currencyId','nameZh',a.collectionCurrency||'TWD');
   ['isPublic','isHomeHero','isFeatured','isGallery','isShowcase'].forEach(k=>drawerForm.elements[k].checked=bool(a[k]));
@@ -224,14 +335,34 @@ function pairName(payload,idField,nameField,rows,idKey,nameKey){
  const found=rows.find(r=>String(r[idKey])===String(payload[idField]||''));
  payload[nameField]=found?found[nameKey]||'':'';
 }
+function pairMultiNames(payload,idField,nameField,rows,idKey,nameKey){
+ const wanted=new Set(splitIds(payload[idField]));
+ payload[idField]=[...wanted].join(',');
+ payload[nameField]=rows.filter(r=>wanted.has(String(r[idKey]))).map(r=>r[nameKey]||r[idKey]).join('、');
+}
+function typeDefaults(typeId){return (meta?.artworkTypes||[]).find(r=>String(r.typeId)===String(typeId||''))||null;}
+function applyTypeDefaultsToRow(tr,typeId){
+ const d=typeDefaults(typeId);if(!d)return;
+ if(d.defaultMaterialId){const el=tr.querySelector('[data-field="materialId"]');if(el)el.value=d.defaultMaterialId;}
+ const mb=tr.querySelector('[data-medium-picker]');if(mb){mb.dataset.value=splitIds(d.defaultMediumIds).join(',');updateMediumButton(mb,mb.dataset.value,d.defaultMediumNames);}
+ markRowDirty(tr,true);
+}
+function updateMediumButton(btn,ids,fallbackNames){if(!btn)return;btn.dataset.value=splitIds(ids).join(',');const names=mediumNames(ids);btn.textContent=names.join('、')||String(fallbackNames||'').trim()||'選擇媒材';btn.classList.toggle('has-value',names.length>0);}
 async function savePayload(payload){
  pairName(payload,'artworkTypeId','artworkTypeName',meta.artworkTypes,'typeId','nameZh');
  pairName(payload,'subjectIds','subjectNames',meta.subjects,'subjectId','nameZh');
  pairName(payload,'materialId','material',meta.materials,'materialId','nameZh');
- pairName(payload,'mediumId','medium',meta.media,'mediumId','nameZh');
+ pairMultiNames(payload,'mediumId','medium',meta.media,'mediumId','nameZh');
  pairName(payload,'collectionStatusId','collectionStatus',meta.collectionStatuses,'statusId','nameZh');
  return XxyCms.post('adminUpdateArtwork',payload);
 }
+drawerForm.elements.artworkTypeId.addEventListener('change',e=>{
+ const now=String(e.target.value||'');if(now===drawerOriginalType)return;const d=typeDefaults(now);
+ if(d){const msg=drawerOriginalType?'作品類型已變更為「'+(d.nameZh||now)+'」，是否套用此類型的預設材質與媒材？':'第一次設定作品類型為「'+(d.nameZh||now)+'」，是否套用預設材質與媒材？';
+  if(confirmTypeDefaults(msg)){if(d.defaultMaterialId)drawerForm.elements.materialId.value=d.defaultMaterialId;drawerForm.elements.mediumId.value=splitIds(d.defaultMediumIds).join(',');updateMediumButton(document.getElementById('drawerMediumButton'),drawerForm.elements.mediumId.value,d.defaultMediumNames);}
+ }
+ drawerOriginalType=now;
+});
 drawerForm.addEventListener('submit',async e=>{
  e.preventDefault();const id=drawerForm.dataset.id;const payload={artworkId:id};
  ['titleZh','titleEn','year','size','artworkTypeId','subjectIds','materialId','mediumId','collectionStatusId','collectionCurrency','description'].forEach(k=>payload[k]=drawerForm.elements[k].value);
@@ -240,6 +371,31 @@ drawerForm.addEventListener('submit',async e=>{
  try{await savePayload(payload);msg.textContent='已儲存';XxyCms.clearCache();setTimeout(()=>load(true),300);}
  catch(e){msg.textContent='儲存失敗：'+e.message;}
 });
+
+function openMediumPicker(target){
+ mediumTarget=target;const ids=target.id==='batchMediumValue'?target.dataset.value:(target.closest('.medium-field')?drawerForm.elements.mediumId.value:target.dataset.value);
+ mediumDraft=new Set(splitIds(ids));
+ mediumChoices.innerHTML=(meta?.media||[]).map(r=>`<label><input type="checkbox" value="${esc(r.mediumId)}" ${mediumDraft.has(String(r.mediumId))?'checked':''}><span><b>${esc(r.nameZh||r.mediumId)}</b><small>${esc(r.nameEn||'')}</small></span></label>`).join('');
+ mediumModal.hidden=false;document.body.classList.add('modal-open');
+}
+function closeMediumPicker(){mediumModal.hidden=true;document.body.classList.remove('modal-open');mediumTarget=null;}
+mediumChoices.addEventListener('change',e=>{if(e.target.type==='checkbox'){e.target.checked?mediumDraft.add(e.target.value):mediumDraft.delete(e.target.value);}});
+document.getElementById('mediumApply').onclick=()=>{
+ if(!mediumTarget)return closeMediumPicker();const ids=[...mediumDraft].join(',');
+ if(mediumTarget.id==='batchMediumValue'){mediumTarget.dataset.value=ids;updateMediumButton(mediumTarget,ids,'');}
+ else if(mediumTarget.closest('.medium-field')){drawerForm.elements.mediumId.value=ids;updateMediumButton(document.getElementById('drawerMediumButton'),ids,'');}
+ else{mediumTarget.dataset.value=ids;updateMediumButton(mediumTarget,ids,'');markRowDirty(mediumTarget.closest('tr'),true);}
+ closeMediumPicker();
+};
+document.querySelectorAll('[data-medium-close],#mediumCancel').forEach(el=>el.addEventListener('click',closeMediumPicker));
+document.getElementById('drawerMediumButton').addEventListener('click',e=>openMediumPicker(e.currentTarget));
+
+function confirmTypeDefaults(message){return window.confirm(message+'\n\n按「確定」套用預設材質與媒材；按「取消」保留目前設定。');}
+function handleTypeChangeForRow(select){
+ const tr=select.closest('tr');const old=String(select.dataset.originalType||'');const now=String(select.value||'');if(old===now)return;
+ const d=typeDefaults(now);if(d){const label=d.nameZh||now;const msg=old?'作品類型已變更為「'+label+'」，是否套用此類型的預設材質與媒材？':'第一次設定作品類型為「'+label+'」，是否套用預設材質與媒材？';if(confirmTypeDefaults(msg))applyTypeDefaultsToRow(tr,now);}
+ select.dataset.originalType=now;markRowDirty(tr,true);
+}
 
 function updateBatchPanel(){
  const count=selected.size;document.getElementById('selectedCount').textContent=count;
@@ -265,45 +421,68 @@ function masterRows(field){
  if(field==='collectionStatusId')return [meta.collectionStatuses,'statusId','nameZh','collectionStatus'];
  return [[], '', '', ''];
 }
-const batchField=document.getElementById('batchField'),batchValue=document.getElementById('batchValue');
+const batchField=document.getElementById('batchField'),batchValue=document.getElementById('batchValue'),batchMediumValue=document.getElementById('batchMediumValue');
 batchField.onchange=()=>{
- const [rows,idKey,nameKey]=masterRows(batchField.value);batchValue.disabled=!batchField.value;
- batchValue.innerHTML='<option value="">請選擇</option>'+rows.map(r=>`<option value="${esc(r[idKey])}">${esc(r[nameKey]||r[idKey])}</option>`).join('');
+ const [rows,idKey,nameKey]=masterRows(batchField.value);const isMedium=batchField.value==='mediumId';
+ batchValue.hidden=isMedium;batchMediumValue.hidden=!isMedium;batchValue.disabled=!batchField.value||isMedium;
+ if(isMedium){batchMediumValue.dataset.value='';updateMediumButton(batchMediumValue,'','');}
+ else batchValue.innerHTML='<option value="">請選擇</option>'+rows.map(r=>`<option value="${esc(r[idKey])}">${esc(r[nameKey]||r[idKey])}</option>`).join('');
 };
+batchMediumValue.addEventListener('click',e=>openMediumPicker(e.currentTarget));
+function applyPatchToLoaded(ids,patch){
+ ids.forEach(id=>{const item=loaded.get(id);if(item)Object.assign(item,patch);});
+}
 async function runBatch(patch,label){
- if(!selected.size)return;const msg=document.getElementById('batchMessage');msg.textContent=`${label}處理中…`;
- try{const res=await XxyCms.batchUpdateArtworks([...selected],patch);msg.textContent=`完成：已更新 ${res.updatedCount||0} 件作品`;XxyCms.clearCache();clearSelection();await load(true);}
- catch(err){msg.textContent='批次更新失敗：'+err.message;}
+ if(!selected.size)return;
+ const ids=[...selected],msg=document.getElementById('batchMessage');msg.textContent=`${label}處理中…`;
+ try{
+   const res=await XxyCms.batchUpdateArtworks(ids,patch);
+   applyPatchToLoaded(ids,patch);
+   msg.textContent=`完成：已更新 ${res.updatedCount||0} 件作品`;
+   XxyCms.clearCache();clearSelection();await load(true);
+ }catch(err){msg.textContent='批次更新失敗：'+err.message;}
 }
 document.querySelectorAll('[data-bool-field]').forEach(btn=>btn.onclick=()=>runBatch({[btn.dataset.boolField]:btn.dataset.boolValue==='true'},btn.textContent));
 document.getElementById('applyBatchMaster').onclick=()=>{
- const field=batchField.value,value=batchValue.value;if(!field||!value){alert('請先選擇欄位與值');return;}
- const [rows,idKey,nameKey,nameField]=masterRows(field);const found=rows.find(r=>String(r[idKey])===String(value));
- const patch={[field]:value,[nameField]:found?(found[nameKey]||''):''};runBatch(patch,'批次修改');
+ const field=batchField.value,value=field==='mediumId'?batchMediumValue.dataset.value:batchValue.value;if(!field||!value){alert('請先選擇欄位與值');return;}
+ const [rows,idKey,nameKey,nameField]=masterRows(field);
+ if(field==='mediumId'){const wanted=new Set(splitIds(value));const patch={mediumId:[...wanted].join(','),medium:rows.filter(r=>wanted.has(String(r[idKey]))).map(r=>r[nameKey]||r[idKey]).join('、')};runBatch(patch,'批次修改媒材');return;}
+ const found=rows.find(r=>String(r[idKey])===String(value));const patch={[field]:value,[nameField]:found?(found[nameKey]||''):''};runBatch(patch,'批次修改');
 };
 
+sheetBody.addEventListener('input',e=>{
+ const field=e.target.closest('[data-field]');
+ if(field)markRowDirty(field.closest('tr'),true);
+});
+sheetBody.addEventListener('change',e=>{
+ const field=e.target.closest('[data-field]');
+ if(field){if(field.dataset.field==='artworkTypeId')handleTypeChangeForRow(field);else markRowDirty(field.closest('tr'),true);}
+});
+document.getElementById('saveAllRows').addEventListener('click',saveAllDirtyRows);
+
 document.addEventListener('click',async e=>{
+ const medium=e.target.closest('[data-medium-picker]');if(medium){openMediumPicker(medium);return;}
  const open=e.target.closest('[data-open]');
  if(open){openDrawer(open.dataset.open);return;}
  const save=e.target.closest('.row-save');
  if(save){
-  const tr=save.closest('tr'),id=tr.dataset.id,payload={artworkId:id};
-  tr.querySelectorAll('[data-field]').forEach(el=>payload[el.dataset.field]=el.type==='checkbox'?el.checked:el.value);
-  save.disabled=true;save.textContent='儲存中';
-  try{await savePayload(payload);save.textContent='已儲存';XxyCms.clearCache();setTimeout(()=>save.textContent='儲存',1000);}
+  const tr=save.closest('tr'),payload=rowPayload(tr);
+  save.disabled=true;save.textContent='儲存中';tr.classList.add('row-saving');
+  try{await savePayload(payload);markRowDirty(tr,false);tr.classList.remove('row-save-error');tr.classList.add('row-saved');save.textContent='已儲存';XxyCms.clearCache();setTimeout(()=>{save.textContent='儲存';tr.classList.remove('row-saved');},1000);}
   catch(err){save.textContent='失敗';alert(err.message);}
-  finally{save.disabled=false;}
+  finally{save.disabled=false;tr.classList.remove('row-saving');}
  }
 });
 document.getElementById('drawerClose').onclick=closeDrawer;backdrop.onclick=closeDrawer;
 document.getElementById('cardMode').onclick=()=>setMode('card');
 document.getElementById('sheetMode').onclick=()=>setMode('sheet');
+document.getElementById('refreshMasterData').onclick=refreshMasterData;
 let timer;document.getElementById('q').addEventListener('input',e=>{clearTimeout(timer);timer=setTimeout(()=>{state.q=e.target.value.trim();load(true);},350);});
 document.getElementById('filter').addEventListener('change',e=>{state.filter=e.target.value;load(true);});
 document.getElementById('library').addEventListener('change',e=>{state.libraryId=e.target.value;load(true);});
 more.onclick=sheetMore.onclick=()=>load(false);
 const io=new IntersectionObserver(entries=>{if(entries[0].isIntersecting&&hasMore&&!loading&&currentMode==='card')load(false);},{rootMargin:'500px'});
 io.observe(document.getElementById('sentinel'));
-setMode(currentMode);load(true);
+XxyAdminReady.then(()=>{setMode(currentMode);updateDirtyUi();load(true);});
 </script>
 </body></html>
