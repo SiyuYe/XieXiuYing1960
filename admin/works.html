@@ -1,1 +1,309 @@
-<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>作品管理｜CMS</title><link rel="stylesheet" href="../style.css"><link rel="stylesheet" href="admin.css"></head><body class="admin-page"><main class="admin-wide"><header class="admin-top"><div><h1>作品管理</h1><p>資料來源：Google 試算表 CMS API。點作品卡片可進入編輯頁。</p></div><div><a class="btn ghost" href="settings.html">API設定</a><a class="btn ghost" href="index.html">後台首頁</a></div></header><section class="admin-tools"><input id="q" placeholder="搜尋作品名稱、編號、作者、檔名"><select id="filter"><option value="">全部作品</option><option value="missing">待補資料</option><option value="featured">精選</option><option value="hero">首頁輪播</option><option value="public">公開作品</option><option value="hidden">隱藏作品</option></select></section><section id="grid" class="admin-work-grid"></section></main><script src="../api/cms.js"></script><script>let works=[];function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}function img(a){return a.thumbUrl||a.imageUrl||'../assets/images/art-placeholder-1.svg'}function bool(v){return v===true||String(v).toUpperCase()==='TRUE'}function render(){const term=q.value.trim().toLowerCase();const f=filter.value;let list=works.filter(a=>{const hay=[a.artworkId,a.titleZh,a.titleEn,a.artistName,a.originalFileName].join(' ').toLowerCase();if(term&&!hay.includes(term))return false;if(f==='missing'&&String(a.dataStatus||'').includes('待補')===false)return false;if(f==='featured'&&!bool(a.isFeatured))return false;if(f==='hero'&&!bool(a.isHomeHero))return false;if(f==='public'&&!bool(a.isPublic))return false;if(f==='hidden'&&bool(a.isPublic))return false;return true;});grid.innerHTML=list.map(a=>`<a class="admin-work" href="artwork-edit.html?id=${encodeURIComponent(a.artworkId||a.id)}"><img src="${esc(img(a))}" loading="lazy"><div><b>${esc(a.titleZh||a.originalFileName||'未命名作品')}</b><small>${esc(a.artworkId)}｜${esc(a.artistName||'')}｜${esc(a.artworkTypeName||a.artworkTypeId||'')}</small><small>${esc([a.year,a.size,a.medium,a.material].filter(Boolean).join('｜'))}</small><span>${esc(a.dataStatus||'')}</span></div></a>`).join('')||'<p>沒有符合的作品。</p>'}q.oninput=render;filter.onchange=render;(async()=>{try{const data=await XxyCms.get('artworks');works=data.artworks||[];render();}catch(e){grid.innerHTML='<p class="error">讀取失敗：'+esc(e.message)+'</p>';}})();</script></body></html>
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>作品管理｜CMS v7.2-D</title>
+<link rel="stylesheet" href="../style.css"><link rel="stylesheet" href="admin.css">
+</head>
+<body class="admin-page">
+<main class="admin-wide admin-sheet-page">
+<header class="admin-top">
+  <div><h1>作品管理</h1><p>CMS v7.2-D：卡片瀏覽＋單頁試算表管理＋勾選批次管理；展示排序請到統一排序中心。</p></div>
+  <div><a class="btn ghost" href="sort.html">排序中心</a><a class="btn ghost" href="settings.html">API設定</a><a class="btn ghost" href="index.html">後台首頁</a></div>
+</header>
+
+<section class="admin-toolbar-panel">
+  <div class="admin-tools admin-tools-v72b">
+    <select id="library"><option value="">全部作者／作品庫</option></select>
+    <input id="q" autocomplete="off" placeholder="搜尋作品名稱、編號、作者、檔名">
+    <select id="filter">
+      <option value="">全部作品</option><option value="missing">待補資料</option>
+      <option value="featured">精選</option><option value="hero">首頁輪播</option>
+      <option value="public">公開作品</option><option value="hidden">隱藏作品</option><option value="gallery">線上藝廊</option><option value="showcase">作品展示</option>
+    </select>
+    <div class="view-switch" role="group" aria-label="顯示模式">
+      <button id="cardMode" class="mode-btn active" type="button">卡片</button>
+      <button id="sheetMode" class="mode-btn" type="button">資料表</button>
+    </div>
+  </div>
+  <p id="summary" class="admin-status">讀取中…</p>
+</section>
+
+<section id="batchPanel" class="batch-panel" hidden>
+  <div class="batch-summary"><strong>已選 <span id="selectedCount">0</span> 件</strong><button id="clearSelection" type="button" class="batch-link">清除選取</button></div>
+  <div class="batch-actions-grid">
+    <div class="batch-group"><span>顯示狀態</span>
+      <button type="button" data-bool-field="isPublic" data-bool-value="true">批次公開</button>
+      <button type="button" data-bool-field="isPublic" data-bool-value="false">批次隱藏</button>
+      <button type="button" data-bool-field="isHomeHero" data-bool-value="true">加入首頁輪播</button>
+      <button type="button" data-bool-field="isHomeHero" data-bool-value="false">移出首頁輪播</button>
+      <button type="button" data-bool-field="isFeatured" data-bool-value="true">加入精選</button>
+      <button type="button" data-bool-field="isFeatured" data-bool-value="false">移出精選</button>
+      <button type="button" data-bool-field="isGallery" data-bool-value="true">加入線上藝廊</button>
+      <button type="button" data-bool-field="isGallery" data-bool-value="false">移出線上藝廊</button>
+      <button type="button" data-bool-field="isShowcase" data-bool-value="true">加入作品展示</button>
+      <button type="button" data-bool-field="isShowcase" data-bool-value="false">移出作品展示</button>
+    </div>
+    <div class="batch-group batch-master"><span>批次修改固定資料</span>
+      <select id="batchField"><option value="">選擇欄位</option><option value="artworkTypeId">作品類型</option><option value="subjectIds">題材</option><option value="materialId">材質</option><option value="mediumId">媒材</option><option value="collectionStatusId">收藏狀態</option></select>
+      <select id="batchValue" disabled><option value="">請先選欄位</option></select>
+      <button id="applyBatchMaster" type="button" class="primary-batch">套用到已選作品</button>
+    </div>
+  </div>
+  <p id="batchMessage" class="batch-message"></p>
+</section>
+
+<section id="cardView">
+  <section id="grid" class="admin-work-grid" aria-live="polite"></section>
+  <div class="admin-load-more"><button id="more" class="btn primary" type="button" hidden>載入更多作品</button></div>
+  <div id="sentinel" aria-hidden="true"></div>
+</section>
+
+<section id="sheetView" hidden>
+  <div class="sheet-help">可直接修改文字與下拉選單；每列按「儲存」寫回 Google 試算表。固定資料只顯示中文，ID 由系統自動保存。</div>
+  <div class="sheet-wrap">
+    <table class="artwork-sheet" id="artworkSheet">
+      <thead><tr>
+        <th class="sticky-col select-col"><input id="selectAllLoaded" type="checkbox" aria-label="全選目前已載入作品"></th><th class="thumb-col">縮圖</th><th>作品編號</th><th>中文作品名</th><th>英文作品名</th>
+        <th>年份</th><th>尺寸</th><th>作品類型</th><th>題材</th><th>材質</th><th>媒材</th>
+        <th>收藏狀態</th><th>官網公開</th><th>首頁輪播</th><th>精選作品</th><th>線上藝廊</th><th>作品展示</th><th>資料狀態</th><th>操作</th>
+      </tr></thead>
+      <tbody id="sheetBody"></tbody>
+    </table>
+  </div>
+  <div class="admin-load-more"><button id="sheetMore" class="btn primary" type="button" hidden>載入更多作品</button></div>
+</section>
+</main>
+
+<div id="drawerBackdrop" class="drawer-backdrop" hidden></div>
+<aside id="drawer" class="work-drawer" aria-hidden="true">
+  <header class="drawer-head">
+    <div><small id="drawerId"></small><h2 id="drawerTitle">作品資料</h2></div>
+    <button id="drawerClose" class="drawer-close" type="button" aria-label="關閉">×</button>
+  </header>
+  <div id="drawerLoading" class="admin-status">讀取中…</div>
+  <form id="drawerForm" class="drawer-form" hidden>
+    <div class="drawer-preview"><img id="drawerImage" alt=""><span id="drawerFilename"></span></div>
+    <div class="drawer-grid">
+      <label>中文作品名<input name="titleZh"></label>
+      <label>英文作品名<input name="titleEn"></label>
+      <label>年份<input name="year"></label>
+      <label>尺寸<input name="size"></label>
+      <label>作品類型<select name="artworkTypeId"></select></label>
+      <label>題材<select name="subjectIds"></select></label>
+      <label>材質<select name="materialId"></select></label>
+      <label>媒材<select name="mediumId"></select></label>
+      <label>收藏狀態<select name="collectionStatusId"></select></label>
+      <label>幣別<select name="collectionCurrency"></select></label>
+    </div>
+    <label>作品介紹<textarea name="description" rows="5"></textarea></label>
+    <div class="drawer-checks">
+      <label><input type="checkbox" name="isPublic"> 官網公開</label>
+      <label><input type="checkbox" name="isHomeHero"> 首頁輪播</label>
+      <label><input type="checkbox" name="isFeatured"> 精選作品</label>
+      <label><input type="checkbox" name="isGallery"> 線上藝廊</label>
+      <label><input type="checkbox" name="isShowcase"> 作品展示</label>
+    </div>
+    <div class="drawer-actions"><button class="btn primary" type="submit">儲存作品資料</button><span id="drawerMessage"></span></div>
+  </form>
+</aside>
+
+<script src="../api/cms.js"></script>
+<script>
+const PAGE_SIZE=24;
+let page=1, loading=false, hasMore=true, requestSeq=0, controller=null, meta=null;
+let currentMode=localStorage.getItem('xxy.cms.workMode')||'card';
+const state={q:'',filter:'',libraryId:'',artistId:''};
+const loaded=new Map();
+const selected=new Set();
+const grid=document.getElementById('grid'), summary=document.getElementById('summary');
+const more=document.getElementById('more'), sheetMore=document.getElementById('sheetMore');
+const sheetBody=document.getElementById('sheetBody');
+const drawer=document.getElementById('drawer'), backdrop=document.getElementById('drawerBackdrop');
+const drawerForm=document.getElementById('drawerForm'), drawerLoading=document.getElementById('drawerLoading');
+function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+function bool(v){return v===true||String(v||'').toUpperCase()==='TRUE'||String(v||'')==='是';}
+function img(a){return a.thumbUrl||a.imageUrl||'../assets/images/art-placeholder-1.svg';}
+function optionHtml(rows,idKey,nameKey,value){
+  return '<option value="">未設定</option>'+rows.map(r=>`<option value="${esc(r[idKey])}" ${String(r[idKey])===String(value||'')?'selected':''}>${esc(r[nameKey]||r[idKey])}</option>`).join('');
+}
+function card(a){
+ const id=a.artworkId||a.id||'';
+ return `<article class="admin-work admin-work-button" data-id="${esc(id)}"><label class="card-select"><input type="checkbox" data-select="${esc(id)}" ${selected.has(id)?'checked':''}><span>選取</span></label><button class="card-open" type="button" data-open="${esc(id)}">
+   <img src="${esc(img(a))}" loading="lazy" decoding="async" width="96" height="96" alt="${esc(a.titleZh||a.originalFileName||id)}">
+   <div><b>${esc(a.titleZh||a.originalFileName||'未命名作品')}</b>
+   <small>${esc(id)}｜${esc(a.artistName||'')}｜${esc(a.artworkTypeName||'')}</small>
+   <small>${esc([a.year,a.size].filter(Boolean).join('｜'))}</small><span>${esc(a.dataStatus||'')}</span></div>
+ </button></article>`;
+}
+function selectCell(name,rows,idKey,nameKey,value,id){
+ return `<select data-field="${name}" data-id="${esc(id)}">${optionHtml(rows,idKey,nameKey,value)}</select>`;
+}
+function rowHtml(a){
+ const id=a.artworkId||a.id||'';
+ return `<tr data-id="${esc(id)}">
+  <td class="sticky-col select-col"><input type="checkbox" data-select="${esc(id)}" ${selected.has(id)?'checked':''}></td>
+  <td class="thumb-col"><button class="sheet-thumb" type="button" data-open="${esc(id)}"><img src="${esc(img(a))}" loading="lazy" decoding="async" alt=""></button></td>
+  <td><button class="id-link" type="button" data-open="${esc(id)}">${esc(id)}</button></td>
+  <td><input data-field="titleZh" value="${esc(a.titleZh||'')}"></td>
+  <td><input data-field="titleEn" value="${esc(a.titleEn||'')}"></td>
+  <td><input class="small-input" data-field="year" value="${esc(a.year||'')}"></td>
+  <td><input data-field="size" value="${esc(a.size||'')}"></td>
+  <td>${selectCell('artworkTypeId',meta.artworkTypes,'typeId','nameZh',a.artworkTypeId,id)}</td>
+  <td>${selectCell('subjectIds',meta.subjects,'subjectId','nameZh',a.subjectIds,id)}</td>
+  <td>${selectCell('materialId',meta.materials,'materialId','nameZh',a.materialId,id)}</td>
+  <td>${selectCell('mediumId',meta.media,'mediumId','nameZh',a.mediumId,id)}</td>
+  <td>${selectCell('collectionStatusId',meta.collectionStatuses,'statusId','nameZh',a.collectionStatusId,id)}</td>
+  <td class="check-cell"><input type="checkbox" data-field="isPublic" ${bool(a.isPublic)?'checked':''}></td>
+  <td class="check-cell"><input type="checkbox" data-field="isHomeHero" ${bool(a.isHomeHero)?'checked':''}></td>
+  <td class="check-cell"><input type="checkbox" data-field="isFeatured" ${bool(a.isFeatured)?'checked':''}></td>
+  <td class="check-cell"><input type="checkbox" data-field="isGallery" ${bool(a.isGallery)?'checked':''}></td>
+  <td class="check-cell"><input type="checkbox" data-field="isShowcase" ${bool(a.isShowcase)?'checked':''}></td>
+  <td><span class="status-pill">${esc(a.dataStatus||'')}</span></td>
+  <td><button class="row-save" type="button">儲存</button></td>
+ </tr>`;
+}
+function params(){return {page,pageSize:PAGE_SIZE,q:state.q,filter:state.filter,libraryId:state.libraryId,artistId:state.artistId};}
+async function ensureMeta(){
+ if(meta)return meta;
+ const data=await XxyCms.adminMeta({cacheMs:10*60*1000});
+ meta=data;
+ const lib=document.getElementById('library');
+ lib.innerHTML='<option value="">全部作者／作品庫</option>'+data.libraries.map(x=>`<option value="${esc(x.libraryId)}">${esc(x.authorName||x.libraryName)}｜${esc(x.libraryName)}</option>`).join('');
+ return meta;
+}
+async function load(reset){
+ if(loading)return;
+ if(reset){page=1;hasMore=true;grid.innerHTML='';sheetBody.innerHTML='';loaded.clear();clearSelection();}
+ if(!hasMore)return;
+ loading=true;more.hidden=true;sheetMore.hidden=true;summary.textContent='讀取中…';
+ const seq=++requestSeq;if(controller)controller.abort();controller=new AbortController();
+ try{
+   await ensureMeta();
+   const data=await XxyCms.artworksPage(params(),{signal:controller.signal,cacheMs:120000});
+   if(seq!==requestSeq)return;
+   const list=data.artworks||[];list.forEach(a=>loaded.set(a.artworkId||a.id,a));
+   grid.insertAdjacentHTML('beforeend',list.map(card).join(''));
+   sheetBody.insertAdjacentHTML('beforeend',list.map(rowHtml).join(''));
+   hasMore=Boolean(data.hasMore);summary.textContent=`顯示 ${loaded.size} / ${data.total||0} 件作品`;
+   page++;more.hidden=!hasMore;sheetMore.hidden=!hasMore;updateBatchPanel();
+ }catch(e){if(e.name!=='AbortError')summary.innerHTML='<span class="error">讀取失敗：'+esc(e.message)+'</span>';}
+ finally{if(seq===requestSeq)loading=false;}
+}
+function setMode(mode){
+ currentMode=mode;localStorage.setItem('xxy.cms.workMode',mode);
+ document.getElementById('cardView').hidden=mode!=='card';
+ document.getElementById('sheetView').hidden=mode!=='sheet';
+ document.getElementById('cardMode').classList.toggle('active',mode==='card');
+ document.getElementById('sheetMode').classList.toggle('active',mode==='sheet');
+}
+function fillSelect(el,rows,idKey,nameKey,value){el.innerHTML=optionHtml(rows,idKey,nameKey,value);}
+async function openDrawer(id){
+ drawer.classList.add('open');drawer.setAttribute('aria-hidden','false');backdrop.hidden=false;
+ drawerLoading.hidden=false;drawerForm.hidden=true;drawerLoading.textContent='讀取中…';
+ try{
+  await ensureMeta();const res=await XxyCms.artwork(id,{cacheMs:300000});const a=res.artwork;
+  drawerLoading.hidden=true;drawerForm.hidden=false;drawerForm.dataset.id=id;
+  document.getElementById('drawerId').textContent=id+'｜'+(a.artistName||'');
+  document.getElementById('drawerTitle').textContent=a.titleZh||a.originalFileName||'作品資料';
+  document.getElementById('drawerImage').src=a.imageUrl||a.thumbUrl||'../assets/images/art-placeholder-1.svg';
+  document.getElementById('drawerFilename').textContent=a.originalFileName||'';
+  ['titleZh','titleEn','year','size','description'].forEach(k=>drawerForm.elements[k].value=a[k]||'');
+  fillSelect(drawerForm.elements.artworkTypeId,meta.artworkTypes,'typeId','nameZh',a.artworkTypeId);
+  fillSelect(drawerForm.elements.subjectIds,meta.subjects,'subjectId','nameZh',a.subjectIds);
+  fillSelect(drawerForm.elements.materialId,meta.materials,'materialId','nameZh',a.materialId);
+  fillSelect(drawerForm.elements.mediumId,meta.media,'mediumId','nameZh',a.mediumId);
+  fillSelect(drawerForm.elements.collectionStatusId,meta.collectionStatuses,'statusId','nameZh',a.collectionStatusId);
+  fillSelect(drawerForm.elements.collectionCurrency,meta.currencies,'currencyId','nameZh',a.collectionCurrency||'TWD');
+  ['isPublic','isHomeHero','isFeatured','isGallery','isShowcase'].forEach(k=>drawerForm.elements[k].checked=bool(a[k]));
+  document.getElementById('drawerMessage').textContent='';
+ }catch(e){drawerLoading.textContent='讀取失敗：'+e.message;}
+}
+function closeDrawer(){drawer.classList.remove('open');drawer.setAttribute('aria-hidden','true');backdrop.hidden=true;}
+function pairName(payload,idField,nameField,rows,idKey,nameKey){
+ const found=rows.find(r=>String(r[idKey])===String(payload[idField]||''));
+ payload[nameField]=found?found[nameKey]||'':'';
+}
+async function savePayload(payload){
+ pairName(payload,'artworkTypeId','artworkTypeName',meta.artworkTypes,'typeId','nameZh');
+ pairName(payload,'subjectIds','subjectNames',meta.subjects,'subjectId','nameZh');
+ pairName(payload,'materialId','material',meta.materials,'materialId','nameZh');
+ pairName(payload,'mediumId','medium',meta.media,'mediumId','nameZh');
+ pairName(payload,'collectionStatusId','collectionStatus',meta.collectionStatuses,'statusId','nameZh');
+ return XxyCms.post('adminUpdateArtwork',payload);
+}
+drawerForm.addEventListener('submit',async e=>{
+ e.preventDefault();const id=drawerForm.dataset.id;const payload={artworkId:id};
+ ['titleZh','titleEn','year','size','artworkTypeId','subjectIds','materialId','mediumId','collectionStatusId','collectionCurrency','description'].forEach(k=>payload[k]=drawerForm.elements[k].value);
+ ['isPublic','isHomeHero','isFeatured','isGallery','isShowcase'].forEach(k=>payload[k]=drawerForm.elements[k].checked);
+ const msg=document.getElementById('drawerMessage');msg.textContent='儲存中…';
+ try{await savePayload(payload);msg.textContent='已儲存';XxyCms.clearCache();setTimeout(()=>load(true),300);}
+ catch(e){msg.textContent='儲存失敗：'+e.message;}
+});
+
+function updateBatchPanel(){
+ const count=selected.size;document.getElementById('selectedCount').textContent=count;
+ document.getElementById('batchPanel').hidden=count===0;
+ document.querySelectorAll('[data-select]').forEach(el=>el.checked=selected.has(el.dataset.select));
+ const all=[...loaded.keys()];const allChecked=all.length>0&&all.every(id=>selected.has(id));
+ const box=document.getElementById('selectAllLoaded');box.checked=allChecked;box.indeterminate=!allChecked&&all.some(id=>selected.has(id));
+}
+function clearSelection(){selected.clear();updateBatchPanel();}
+document.addEventListener('change',e=>{
+ const box=e.target.closest('[data-select]');
+ if(box){box.checked?selected.add(box.dataset.select):selected.delete(box.dataset.select);updateBatchPanel();}
+});
+document.getElementById('selectAllLoaded').addEventListener('change',e=>{
+ [...loaded.keys()].forEach(id=>e.target.checked?selected.add(id):selected.delete(id));updateBatchPanel();
+});
+document.getElementById('clearSelection').onclick=clearSelection;
+function masterRows(field){
+ if(field==='artworkTypeId')return [meta.artworkTypes,'typeId','nameZh','artworkTypeName'];
+ if(field==='subjectIds')return [meta.subjects,'subjectId','nameZh','subjectNames'];
+ if(field==='materialId')return [meta.materials,'materialId','nameZh','material'];
+ if(field==='mediumId')return [meta.media,'mediumId','nameZh','medium'];
+ if(field==='collectionStatusId')return [meta.collectionStatuses,'statusId','nameZh','collectionStatus'];
+ return [[], '', '', ''];
+}
+const batchField=document.getElementById('batchField'),batchValue=document.getElementById('batchValue');
+batchField.onchange=()=>{
+ const [rows,idKey,nameKey]=masterRows(batchField.value);batchValue.disabled=!batchField.value;
+ batchValue.innerHTML='<option value="">請選擇</option>'+rows.map(r=>`<option value="${esc(r[idKey])}">${esc(r[nameKey]||r[idKey])}</option>`).join('');
+};
+async function runBatch(patch,label){
+ if(!selected.size)return;const msg=document.getElementById('batchMessage');msg.textContent=`${label}處理中…`;
+ try{const res=await XxyCms.batchUpdateArtworks([...selected],patch);msg.textContent=`完成：已更新 ${res.updatedCount||0} 件作品`;XxyCms.clearCache();clearSelection();await load(true);}
+ catch(err){msg.textContent='批次更新失敗：'+err.message;}
+}
+document.querySelectorAll('[data-bool-field]').forEach(btn=>btn.onclick=()=>runBatch({[btn.dataset.boolField]:btn.dataset.boolValue==='true'},btn.textContent));
+document.getElementById('applyBatchMaster').onclick=()=>{
+ const field=batchField.value,value=batchValue.value;if(!field||!value){alert('請先選擇欄位與值');return;}
+ const [rows,idKey,nameKey,nameField]=masterRows(field);const found=rows.find(r=>String(r[idKey])===String(value));
+ const patch={[field]:value,[nameField]:found?(found[nameKey]||''):''};runBatch(patch,'批次修改');
+};
+
+document.addEventListener('click',async e=>{
+ const open=e.target.closest('[data-open]');
+ if(open){openDrawer(open.dataset.open);return;}
+ const save=e.target.closest('.row-save');
+ if(save){
+  const tr=save.closest('tr'),id=tr.dataset.id,payload={artworkId:id};
+  tr.querySelectorAll('[data-field]').forEach(el=>payload[el.dataset.field]=el.type==='checkbox'?el.checked:el.value);
+  save.disabled=true;save.textContent='儲存中';
+  try{await savePayload(payload);save.textContent='已儲存';XxyCms.clearCache();setTimeout(()=>save.textContent='儲存',1000);}
+  catch(err){save.textContent='失敗';alert(err.message);}
+  finally{save.disabled=false;}
+ }
+});
+document.getElementById('drawerClose').onclick=closeDrawer;backdrop.onclick=closeDrawer;
+document.getElementById('cardMode').onclick=()=>setMode('card');
+document.getElementById('sheetMode').onclick=()=>setMode('sheet');
+let timer;document.getElementById('q').addEventListener('input',e=>{clearTimeout(timer);timer=setTimeout(()=>{state.q=e.target.value.trim();load(true);},350);});
+document.getElementById('filter').addEventListener('change',e=>{state.filter=e.target.value;load(true);});
+document.getElementById('library').addEventListener('change',e=>{state.libraryId=e.target.value;load(true);});
+more.onclick=sheetMore.onclick=()=>load(false);
+const io=new IntersectionObserver(entries=>{if(entries[0].isIntersecting&&hasMore&&!loading&&currentMode==='card')load(false);},{rootMargin:'500px'});
+io.observe(document.getElementById('sentinel'));
+setMode(currentMode);load(true);
+</script>
+</body></html>

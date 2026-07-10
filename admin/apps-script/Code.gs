@@ -141,6 +141,7 @@ function doPost(e) {
   try {
     if (body.action === 'contact') return json_(saveContactResponse_(body.data || {}));
     if (body.action === 'adminUpdateArtwork') return json_(adminApiUpdateArtwork_(body.token, body.data || {}));
+    if (body.action === 'adminBatchUpdateArtworks') return json_(adminApiBatchUpdateArtworks_(body.token, body.data || {}));
     return json_({ ok: false, error: 'Unknown action' });
   } catch (err) {
     return json_({ ok: false, error: String(err && err.message ? err.message : err) });
@@ -932,7 +933,7 @@ function artworkHeaders_() {
     'id', 'artworkId', 'titleZh', 'titleEn', 'category', 'subCategory', 'year', 'size',
     'material', 'medium', 'collectionStatus', 'priceNote', 'isSold', 'description',
     'imageUrl', 'thumbUrl', 'driveFileId', 'originalFileName', 'drivePath',
-    'isHomeHero', 'isFeatured', 'isPublic', 'exhibition', 'sort', 'dataStatus',
+    'isHomeHero', 'isFeatured', 'isPublic', 'isGallery', 'isShowcase', 'exhibition', 'sort', 'dataStatus',
     'seoTitle', 'seoDescription', 'createdAt', 'updatedAt'
   ];
 }
@@ -1408,7 +1409,7 @@ function artworkHeaders_() {
     'collectionPrice', 'collectionCurrency', 'collectionPriceVisibility', 'collectionInfoVisibility', 'collectorName', 'collectionDate',
     'isSold', 'isForSale', 'allowInquiry', 'allowPrint', 'description',
     'imageUrl', 'thumbUrl', 'driveFileId', 'originalFileName', 'drivePath',
-    'isHomeHero', 'isFeatured', 'isPublic', 'exhibition', 'sort', 'dataStatus',
+    'isHomeHero', 'isFeatured', 'isPublic', 'isGallery', 'isShowcase', 'exhibition', 'sort', 'dataStatus',
     'seoTitle', 'seoDescription', 'createdAt', 'updatedAt'
   ];
 }
@@ -1955,7 +1956,7 @@ function artworkHeaders_() {
     'collectionPrice', 'collectionCurrency', 'collectionPriceVisibility', 'collectionInfoVisibility', 'collectorName', 'collectionDate',
     'isSold', 'isForSale', 'allowInquiry', 'allowPrint', 'description',
     'imageUrl', 'thumbUrl', 'driveFileId', 'originalFileName', 'drivePath', 'fileSize', 'mimeType',
-    'isHomeHero', 'isFeatured', 'isPublic', 'exhibition', 'sort', 'dataStatus',
+    'isHomeHero', 'isFeatured', 'isPublic', 'isGallery', 'isShowcase', 'exhibition', 'sort', 'dataStatus',
     'seoTitle', 'seoDescription', 'createdAt', 'updatedAt'
   ];
 }
@@ -2090,7 +2091,7 @@ function fieldLabel_(field) {
     collectionPriceVisibility:'收藏價公開狀態', collectionInfoVisibility:'收藏資訊公開狀態', collectorName:'收藏者', collectionDate:'收藏日期',
     isSold:'是否已售出', isForSale:'是否可販售', allowInquiry:'是否接受洽詢', allowPrint:'是否接受複製畫委託', description:'作品介紹',
     imageUrl:'展示圖網址', thumbUrl:'縮圖網址', driveFileId:'Drive檔案ID', originalFileName:'原始檔名', drivePath:'Drive路徑', fileSize:'檔案大小', mimeType:'檔案類型',
-    isHomeHero:'首頁輪播', isFeatured:'精選作品', isPublic:'是否公開', exhibition:'展覽', sort:'排序', dataStatus:'資料狀態', seoTitle:'SEO標題', seoDescription:'SEO描述',
+    isHomeHero:'首頁輪播', isFeatured:'精選作品', isPublic:'是否公開', isGallery:'線上藝廊', isShowcase:'作品展示', exhibition:'展覽', sort:'排序', dataStatus:'資料狀態', seoTitle:'SEO標題', seoDescription:'SEO描述',
     createdAt:'建立日期', updatedAt:'更新日期', typeId:'類型ID', nameZh:'中文名稱', nameEn:'英文名稱', prefixHint:'建議前綴', subjectId:'題材ID', mediumId:'媒材ID', materialId:'材質ID', currencyId:'幣別ID', statusId:'狀態ID'
   };
   return labels[field] || field;
@@ -2772,7 +2773,7 @@ function applyArtworkColumnWidths_(sh) {
     isSold: 80, isForSale: 90, allowInquiry: 95, allowPrint: 95,
     description: 260, imageUrl: 260, thumbUrl: 260, driveFileId: 190,
     originalFileName: 260, drivePath: 180, fileSize: 90, mimeType: 130,
-    isHomeHero: 90, isFeatured: 90, isPublic: 80, exhibition: 120, sort: 65,
+    isHomeHero: 90, isFeatured: 90, isPublic: 80, isGallery: 90, isShowcase: 90, exhibition: 120, sort: 65,
     dataStatus: 95, seoTitle: 180, seoDescription: 260, createdAt: 105, updatedAt: 105
   };
   headers.forEach((h, idx) => {
@@ -2925,7 +2926,7 @@ function applyArtworkColumnWidthsSafe_(sh) {
     isSold: 80, isForSale: 90, allowInquiry: 95, allowPrint: 95,
     description: 260, imageUrl: 260, thumbUrl: 260, driveFileId: 190,
     originalFileName: 260, drivePath: 180, fileSize: 90, mimeType: 130,
-    isHomeHero: 90, isFeatured: 90, isPublic: 80, exhibition: 120, sort: 65,
+    isHomeHero: 90, isFeatured: 90, isPublic: 80, isGallery: 90, isShowcase: 90, exhibition: 120, sort: 65,
     dataStatus: 95, seoTitle: 180, seoDescription: 260, createdAt: 105, updatedAt: 105
   };
   headers.forEach((h, idx) => sh.setColumnWidth(idx + 1, widthMap[h] || 100));
@@ -2951,7 +2952,7 @@ function adminApiUpdateArtwork_(token, data) {
   const artworkId = String(data.artworkId || data.id || '').trim();
   if (!artworkId) throw new Error('缺少 artworkId');
   const libs = getArtworkLibraries_();
-  const allowed = ['titleZh','titleEn','year','size','materialId','material','mediumId','medium','artworkTypeId','artworkTypeName','subjectIds','subjectNames','description','collectionStatusId','collectionStatus','priceNote','collectionPrice','collectionCurrency','collectionPriceVisibility','collectionInfoVisibility','collectorName','collectionDate','isSold','isForSale','allowInquiry','allowPrint','isHomeHero','isFeatured','isPublic','exhibition','sort','dataStatus','seoTitle','seoDescription'];
+  const allowed = ['titleZh','titleEn','year','size','materialId','material','mediumId','medium','artworkTypeId','artworkTypeName','subjectIds','subjectNames','description','collectionStatusId','collectionStatus','priceNote','collectionPrice','collectionCurrency','collectionPriceVisibility','collectionInfoVisibility','collectorName','collectionDate','isSold','isForSale','allowInquiry','allowPrint','isHomeHero','isFeatured','isPublic','isGallery','isShowcase','exhibition','sort','dataStatus','seoTitle','seoDescription'];
   for (let li=0; li<libs.length; li++) {
     const sh = SpreadsheetApp.getActive().getSheetByName(libs[li].sheetName);
     if (!sh || sh.getLastRow() < 3) continue;
@@ -2964,9 +2965,453 @@ function adminApiUpdateArtwork_(token, data) {
       if (String(values[r][idCol-1]).trim() === artworkId) {
         allowed.forEach(k => { if (Object.prototype.hasOwnProperty.call(data, k)) setCellByHeader_(sh, r+1, map, k, data[k]); });
         setCellByHeader_(sh, r+1, map, 'updatedAt', isoDate_());
+        CacheService.getScriptCache().removeAll(['v72a_all_artworks','v72b_admin_meta','v72a_art_'+artworkId]);
         return { ok:true, message:'已更新作品 '+artworkId, artworkId: artworkId, sheetName: libs[li].sheetName };
       }
     }
   }
   throw new Error('找不到作品：' + artworkId);
+}
+
+
+function adminApiBatchUpdateArtworks_(token, data) {
+  assertAdminToken_(token);
+  const ids = Array.isArray(data.artworkIds) ? data.artworkIds.map(v => String(v || '').trim()).filter(Boolean) : [];
+  const patch = data.patch && typeof data.patch === 'object' ? data.patch : {};
+  if (!ids.length) throw new Error('沒有選取任何作品');
+  if (ids.length > 500) throw new Error('單次最多批次更新 500 件作品');
+  const allowed = ['artworkTypeId','artworkTypeName','subjectIds','subjectNames','materialId','material','mediumId','medium','collectionStatusId','collectionStatus','isPublic','isHomeHero','isFeatured','isGallery','isShowcase'];
+  const clean = {};
+  allowed.forEach(k => { if (Object.prototype.hasOwnProperty.call(patch, k)) clean[k] = patch[k]; });
+  if (!Object.keys(clean).length) throw new Error('沒有可更新的欄位');
+  const wanted = new Set(ids);
+  const updated = [];
+  const libs = getArtworkLibraries_();
+  libs.forEach(lib => {
+    const sh = SpreadsheetApp.getActive().getSheetByName(lib.sheetName);
+    if (!sh || sh.getLastRow() < 3) return;
+    const values = sh.getDataRange().getValues();
+    const headers = values[0].map(h => String(h || '').trim());
+    const map = getHeaderIndexMap_(headers);
+    const idCol = map.artworkId || map.id;
+    if (!idCol) return;
+    const touchedRows = [];
+    for (let r = 2; r < values.length; r++) {
+      const id = String(values[r][idCol - 1] || '').trim();
+      if (!wanted.has(id)) continue;
+      Object.keys(clean).forEach(k => {
+        const col = map[k];
+        if (col) values[r][col - 1] = clean[k];
+      });
+      if (map.updatedAt) values[r][map.updatedAt - 1] = isoDate_();
+      touchedRows.push(r + 1);
+      updated.push(id);
+    }
+    if (touchedRows.length) {
+      const minRow = Math.min.apply(null, touchedRows);
+      const maxRow = Math.max.apply(null, touchedRows);
+      const slice = values.slice(minRow - 1, maxRow);
+      sh.getRange(minRow, 1, slice.length, headers.length).setValues(slice);
+    }
+  });
+  const cache = CacheService.getScriptCache();
+  cache.removeAll(['v72a_all_artworks','v72b_admin_meta'].concat(updated.map(id => 'v72a_art_' + id)));
+  return {ok:true, updatedCount:updated.length, artworkIds:updated};
+}
+
+
+/* =========================================================
+ * CMS v7.2-A｜效能核心 API
+ * 1. artworksPage：分頁、搜尋、篩選，只回傳卡片需要的輕量欄位
+ * 2. artwork：只讀單一作品，不再下載全部作品
+ * 3. 使用 CacheService 短暫快取，降低重複讀取試算表
+ * ========================================================= */
+CMS.version = '7.2-A-performance';
+
+function doGet(e) {
+  const params = e && e.parameter ? e.parameter : {};
+  const action = String(params.action || 'siteBundle').trim();
+  let payload;
+  try {
+    if (action === 'ping') payload = { ok:true, version:CMS.version, time:isoNow_() };
+    else if (action === 'artworksPage') payload = getAdminArtworkPageV72_(params);
+    else if (action === 'artwork') payload = getAdminArtworkV72_(params.id || params.artworkId);
+    else if (action === 'siteBundle') payload = getSiteBundle_();
+    else if (action === 'settings') payload = { ok:true, settings:getSettings_() };
+    else if (action === 'home') payload = { ok:true, home:getHome_() };
+    else if (action === 'artworks') payload = { ok:true, artworks:getAllAdminArtworksV72_() };
+    else if (action === 'randomHome') payload = { ok:true, randomHome:getRandomHomeArtworks_() };
+    else if (action === 'news') payload = { ok:true, announcements:getPublicRows_(CMS.sheets.announcements) };
+    else if (action === 'pages') payload = { ok:true, pages:getPages_() };
+    else payload = { ok:false, error:'Unknown action: ' + action };
+  } catch (err) {
+    payload = { ok:false, error:String(err && err.message ? err.message : err) };
+  }
+  return json_(payload);
+}
+
+function getAllAdminArtworksV72_() {
+  const cache = CacheService.getScriptCache();
+  const key = 'v72a_all_artworks';
+  const cached = cache.get(key);
+  if (cached) {
+    try { return JSON.parse(cached); } catch (err) {}
+  }
+  const out = [];
+  const libs = getArtworkLibraries_();
+  libs.forEach(lib => {
+    const sh = SpreadsheetApp.getActive().getSheetByName(lib.sheetName);
+    if (!sh || sh.getLastRow() < 3 || sh.getLastColumn() < 1) return;
+    const values = sh.getDataRange().getValues();
+    const headers = values[0].map(h => String(h || '').trim());
+    for (let r = 2; r < values.length; r++) {
+      const row = {};
+      headers.forEach((h,c) => { if (h) row[h] = normalizeApiCellV72_(values[r][c]); });
+      if (!String(row.artworkId || row.id || '').trim()) return;
+      row.librarySheetName = lib.sheetName;
+      out.push(row);
+    }
+  });
+  try {
+    const raw = JSON.stringify(out);
+    if (raw.length < 95000) cache.put(key, raw, 120);
+  } catch (err) {}
+  return out;
+}
+
+function getAdminArtworkPageV72_(params) {
+  const page = Math.max(1, parseInt(params.page || '1', 10) || 1);
+  const pageSize = Math.min(50, Math.max(10, parseInt(params.pageSize || '24', 10) || 24));
+  const q = String(params.q || '').trim().toLowerCase();
+  const filter = String(params.filter || '').trim();
+  const artistId = String(params.artistId || '').trim();
+  const libraryId = String(params.libraryId || '').trim();
+
+  let list = getAllAdminArtworksV72_().filter(a => {
+    if (artistId && String(a.artistId || '') !== artistId) return false;
+    if (libraryId && String(a.libraryId || '') !== libraryId) return false;
+    if (q) {
+      const hay = [a.artworkId,a.id,a.titleZh,a.titleEn,a.artistName,a.originalFileName]
+        .map(v => String(v || '')).join(' ').toLowerCase();
+      if (hay.indexOf(q) < 0) return false;
+    }
+    if (filter === 'missing' && String(a.dataStatus || '').indexOf('待補') < 0) return false;
+    if (filter === 'featured' && !truthyV72_(a.isFeatured)) return false;
+    if (filter === 'hero' && !truthyV72_(a.isHomeHero)) return false;
+    if (filter === 'public' && !truthyV72_(a.isPublic)) return false;
+    if (filter === 'hidden' && truthyV72_(a.isPublic)) return false;
+    if (filter === 'gallery' && !truthyV72_(a.isGallery)) return false;
+    if (filter === 'showcase' && !truthyV72_(a.isShowcase)) return false;
+    return true;
+  });
+
+  const total = list.length;
+  const start = (page - 1) * pageSize;
+  const slice = list.slice(start, start + pageSize).map(lightArtworkV72_);
+  return {
+    ok:true, version:CMS.version, page:page, pageSize:pageSize, total:total,
+    hasMore:start + slice.length < total, artworks:slice
+  };
+}
+
+function getAdminArtworkV72_(id) {
+  const target = String(id || '').trim();
+  if (!target) throw new Error('缺少作品 ID');
+  const cache = CacheService.getScriptCache();
+  const key = 'v72a_art_' + target;
+  const cached = cache.get(key);
+  if (cached) {
+    try { return {ok:true, version:CMS.version, artwork:JSON.parse(cached)}; } catch (err) {}
+  }
+  const all = getAllAdminArtworksV72_();
+  const found = all.find(a => String(a.artworkId || a.id || '').trim() === target);
+  if (!found) throw new Error('找不到作品：' + target);
+  try {
+    const raw = JSON.stringify(found);
+    if (raw.length < 90000) cache.put(key, raw, 300);
+  } catch (err) {}
+  return {ok:true, version:CMS.version, artwork:found};
+}
+
+function lightArtworkV72_(a) {
+  return {
+    id:a.id || a.artworkId || '',
+    artworkId:a.artworkId || a.id || '',
+    artistId:a.artistId || '',
+    artistName:a.artistName || '',
+    libraryId:a.libraryId || '',
+    titleZh:a.titleZh || '',
+    titleEn:a.titleEn || '',
+    year:a.year || '',
+    size:a.size || '',
+    artworkTypeName:a.artworkTypeName || '',
+    originalFileName:a.originalFileName || '',
+    thumbUrl:a.thumbUrl || a.imageUrl || '',
+    imageUrl:a.imageUrl || a.thumbUrl || '',
+    dataStatus:a.dataStatus || '',
+    isFeatured:a.isFeatured,
+    isHomeHero:a.isHomeHero,
+    isPublic:a.isPublic,
+    isGallery:a.isGallery,
+    isShowcase:a.isShowcase
+  };
+}
+
+function normalizeApiCellV72_(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, CMS.timezone || 'Asia/Taipei', 'yyyy-MM-dd');
+  return v;
+}
+function truthyV72_(v) {
+  return v === true || String(v || '').toUpperCase() === 'TRUE' || String(v || '') === '是';
+}
+
+
+/* =========================================================
+ * CMS v7.2-B｜單頁試算表管理 API
+ * - adminMeta：回傳作者／作品庫與所有主資料下拉選單
+ * - artworksPage：補足資料表模式需要的欄位
+ * ========================================================= */
+CMS.version = '7.2-C-batch-manager';
+
+function doGet(e) {
+  const params = e && e.parameter ? e.parameter : {};
+  const action = String(params.action || 'siteBundle').trim();
+  let payload;
+  try {
+    if (action === 'ping') payload = { ok:true, version:CMS.version, time:isoNow_() };
+    else if (action === 'artworksPage') payload = getAdminArtworkPageV72_(params);
+    else if (action === 'artwork') payload = getAdminArtworkV72_(params.id || params.artworkId);
+    else if (action === 'adminMeta') payload = getAdminMetaV72B_();
+    else if (action === 'siteBundle') payload = getSiteBundle_();
+    else if (action === 'settings') payload = { ok:true, settings:getSettings_() };
+    else if (action === 'home') payload = { ok:true, home:getHome_() };
+    else if (action === 'artworks') payload = { ok:true, artworks:getAllAdminArtworksV72_() };
+    else if (action === 'randomHome') payload = { ok:true, randomHome:getRandomHomeArtworks_() };
+    else if (action === 'news') payload = { ok:true, announcements:getPublicRows_(CMS.sheets.announcements) };
+    else if (action === 'pages') payload = { ok:true, pages:getPages_() };
+    else payload = { ok:false, error:'Unknown action: ' + action };
+  } catch (err) {
+    payload = { ok:false, error:String(err && err.message ? err.message : err) };
+  }
+  return json_(payload);
+}
+
+function getAdminMetaV72B_() {
+  const cache = CacheService.getScriptCache();
+  const key = 'v72b_admin_meta';
+  const cached = cache.get(key);
+  if (cached) {
+    try { return JSON.parse(cached); } catch (err) {}
+  }
+  const payload = {
+    ok:true,
+    version:CMS.version,
+    libraries:getArtworkLibraries_().map(lib => ({
+      libraryId:String(lib.libraryId || ''),
+      libraryName:String(lib.libraryName || lib.sheetName || ''),
+      sheetName:String(lib.sheetName || ''),
+      authorName:String(lib.authorName || ''),
+      prefix:String(lib.prefix || '')
+    })),
+    artists:readTable_(CMS.sheets.artists),
+    artworkTypes:readTable_(CMS.sheets.artworkTypes).filter(r => truthyV72_(r.isPublic) || r.isPublic === '' || r.isPublic == null),
+    subjects:readTable_(CMS.sheets.artworkSubjects).filter(r => truthyV72_(r.isPublic) || r.isPublic === '' || r.isPublic == null),
+    media:readTable_(CMS.sheets.media).filter(r => truthyV72_(r.isPublic) || r.isPublic === '' || r.isPublic == null),
+    materials:readTable_(CMS.sheets.materials).filter(r => truthyV72_(r.isPublic) || r.isPublic === '' || r.isPublic == null),
+    currencies:readTable_(CMS.sheets.currencies).filter(r => truthyV72_(r.isPublic) || r.isPublic === '' || r.isPublic == null),
+    collectionStatuses:readTable_(CMS.sheets.collectionStatuses).filter(r => truthyV72_(r.isPublic) || r.isPublic === '' || r.isPublic == null)
+  };
+  try {
+    const raw = JSON.stringify(payload);
+    if (raw.length < 95000) cache.put(key, raw, 600);
+  } catch (err) {}
+  return payload;
+}
+
+function lightArtworkV72_(a) {
+  return {
+    id:a.id || a.artworkId || '',
+    artworkId:a.artworkId || a.id || '',
+    artistId:a.artistId || '',
+    artistName:a.artistName || '',
+    libraryId:a.libraryId || '',
+    titleZh:a.titleZh || '',
+    titleEn:a.titleEn || '',
+    year:a.year || '',
+    size:a.size || '',
+    artworkTypeId:a.artworkTypeId || '',
+    artworkTypeName:a.artworkTypeName || '',
+    subjectIds:a.subjectIds || '',
+    subjectNames:a.subjectNames || '',
+    materialId:a.materialId || '',
+    material:a.material || '',
+    mediumId:a.mediumId || '',
+    medium:a.medium || '',
+    collectionStatusId:a.collectionStatusId || '',
+    collectionStatus:a.collectionStatus || '',
+    originalFileName:a.originalFileName || '',
+    thumbUrl:a.thumbUrl || a.imageUrl || '',
+    imageUrl:a.imageUrl || a.thumbUrl || '',
+    dataStatus:a.dataStatus || '',
+    isFeatured:a.isFeatured,
+    isHomeHero:a.isHomeHero,
+    isPublic:a.isPublic,
+    isGallery:a.isGallery,
+    isShowcase:a.isShowcase
+  };
+}
+
+
+/* =========================================================
+ * CMS v7.2-D｜統一排序中心
+ * - 四個展示區共用同一張「網站展示配置」表
+ * - 已勾選作品一定有順位；新勾選作品自動補到最後
+ * - 排序中心只允許拖曳／上下移動，不開放手填順位
+ * ========================================================= */
+CMS.version = '7.2-D-unified-sort';
+CMS.sheets.displayConfig = '網站展示配置';
+
+const CMS_DISPLAY_SECTIONS = {
+  homeHero: { flag:'isHomeHero', label:'首頁輪播' },
+  featured: { flag:'isFeatured', label:'精選作品' },
+  gallery: { flag:'isGallery', label:'線上藝廊' },
+  showcase: { flag:'isShowcase', label:'作品展示' }
+};
+
+function doGet(e) {
+  const params = e && e.parameter ? e.parameter : {};
+  const action = String(params.action || 'siteBundle').trim();
+  let payload;
+  try {
+    if (action === 'ping') payload = { ok:true, version:CMS.version, time:isoNow_() };
+    else if (action === 'artworksPage') payload = getAdminArtworkPageV72_(params);
+    else if (action === 'artwork') payload = getAdminArtworkV72_(params.id || params.artworkId);
+    else if (action === 'adminMeta') payload = getAdminMetaV72B_();
+    else if (action === 'displayOrder') payload = getDisplayOrderV72D_(params.section || 'homeHero');
+    else if (action === 'siteBundle') payload = getSiteBundle_();
+    else if (action === 'settings') payload = { ok:true, settings:getSettings_() };
+    else if (action === 'home') payload = { ok:true, home:getHome_() };
+    else if (action === 'artworks') payload = { ok:true, artworks:getAllAdminArtworksV72_() };
+    else if (action === 'randomHome') payload = { ok:true, randomHome:getRandomHomeArtworks_() };
+    else if (action === 'news') payload = { ok:true, announcements:getPublicRows_(CMS.sheets.announcements) };
+    else if (action === 'pages') payload = { ok:true, pages:getPages_() };
+    else payload = { ok:false, error:'Unknown action: ' + action };
+  } catch (err) {
+    payload = { ok:false, error:String(err && err.message ? err.message : err) };
+  }
+  return json_(payload);
+}
+
+function doPost(e) {
+  let body = {};
+  try { body = JSON.parse(e && e.postData && e.postData.contents ? e.postData.contents : '{}'); }
+  catch (err) { return json_({ ok:false, error:'JSON 格式錯誤' }); }
+  try {
+    if (body.action === 'contact') return json_(saveContactResponse_(body.data || {}));
+    if (body.action === 'adminUpdateArtwork') return json_(adminApiUpdateArtwork_(body.token, body.data || {}));
+    if (body.action === 'adminBatchUpdateArtworks') return json_(adminApiBatchUpdateArtworks_(body.token, body.data || {}));
+    if (body.action === 'saveDisplayOrder') return json_(saveDisplayOrderV72D_(body.token, body.data || {}));
+    return json_({ ok:false, error:'Unknown action' });
+  } catch (err) {
+    return json_({ ok:false, error:String(err && err.message ? err.message : err) });
+  }
+}
+
+function ensureDisplayConfigSheetV72D_() {
+  const ss = SpreadsheetApp.getActive();
+  let sh = ss.getSheetByName(CMS.sheets.displayConfig);
+  const headers = ['section','artworkId','sort','updatedAt'];
+  const labels = ['展示區','作品編號','排序','更新時間'];
+  if (!sh) sh = ss.insertSheet(CMS.sheets.displayConfig);
+  if (sh.getLastRow() < 2 || sh.getLastColumn() < headers.length) {
+    sh.clear();
+    sh.getRange(1,1,2,headers.length).setValues([headers,labels]);
+  } else {
+    const current = sh.getRange(1,1,1,Math.max(sh.getLastColumn(),headers.length)).getValues()[0];
+    if (headers.some((h,i)=>String(current[i]||'').trim() !== h)) {
+      const old = readDisplayConfigRowsV72D_(sh);
+      sh.clear();
+      sh.getRange(1,1,2,headers.length).setValues([headers,labels]);
+      if (old.length) sh.getRange(3,1,old.length,headers.length).setValues(old.map(r=>[r.section,r.artworkId,r.sort,r.updatedAt||'']));
+    }
+  }
+  sh.setFrozenRows(2);
+  sh.getRange(1,1,1,headers.length).setBackground('#6bc2ba').setFontColor('#ffffff').setFontWeight('bold');
+  sh.getRange(2,1,1,headers.length).setBackground('#dff2ef').setFontWeight('bold');
+  sh.setColumnWidth(1,120);sh.setColumnWidth(2,120);sh.setColumnWidth(3,70);sh.setColumnWidth(4,150);
+  return sh;
+}
+
+function readDisplayConfigRowsV72D_(sh) {
+  sh = sh || SpreadsheetApp.getActive().getSheetByName(CMS.sheets.displayConfig);
+  if (!sh || sh.getLastRow() < 3) return [];
+  const values = sh.getRange(1,1,sh.getLastRow(),Math.max(sh.getLastColumn(),4)).getValues();
+  const headers = values[0].map(v=>String(v||'').trim());
+  const map = {}; headers.forEach((h,i)=>{if(h)map[h]=i;});
+  return values.slice(2).filter(r=>String(r[map.artworkId]||'').trim()).map(r=>({
+    section:String(r[map.section]||'').trim(), artworkId:String(r[map.artworkId]||'').trim(),
+    sort:Number(r[map.sort]||0), updatedAt:r[map.updatedAt]||''
+  }));
+}
+
+function getSelectedArtworkIdsV72D_(section) {
+  const cfg = CMS_DISPLAY_SECTIONS[section];
+  if (!cfg) throw new Error('未知展示區：' + section);
+  return getAllAdminArtworksV72_().filter(a=>truthyV72_(a[cfg.flag])).map(a=>String(a.artworkId||a.id||'').trim()).filter(Boolean);
+}
+
+function reconcileDisplayOrderV72D_(section) {
+  const sh = ensureDisplayConfigSheetV72D_();
+  const selected = getSelectedArtworkIdsV72D_(section);
+  const selectedSet = new Set(selected);
+  const allRows = readDisplayConfigRowsV72D_(sh);
+  const sectionRows = allRows.filter(r=>r.section===section && selectedSet.has(r.artworkId)).sort((a,b)=>(a.sort||999999)-(b.sort||999999));
+  const ordered = [];
+  const seen = new Set();
+  sectionRows.forEach(r=>{if(!seen.has(r.artworkId)){ordered.push(r.artworkId);seen.add(r.artworkId);}});
+  selected.forEach(id=>{if(!seen.has(id)){ordered.push(id);seen.add(id);}});
+  writeDisplaySectionV72D_(section, ordered, allRows.filter(r=>r.section!==section));
+  return ordered;
+}
+
+function writeDisplaySectionV72D_(section, orderedIds, otherRows) {
+  const sh = ensureDisplayConfigSheetV72D_();
+  const rows = (otherRows || readDisplayConfigRowsV72D_(sh).filter(r=>r.section!==section)).map(r=>[r.section,r.artworkId,r.sort,r.updatedAt||'']);
+  orderedIds.forEach((id,i)=>rows.push([section,id,i+1,new Date()]));
+  if (sh.getLastRow() > 2) sh.getRange(3,1,sh.getLastRow()-2,Math.max(sh.getLastColumn(),4)).clearContent();
+  if (rows.length) sh.getRange(3,1,rows.length,4).setValues(rows);
+  CacheService.getScriptCache().remove('v72d_order_' + section);
+}
+
+function getDisplayOrderV72D_(section) {
+  section = String(section||'homeHero').trim();
+  const cfg = CMS_DISPLAY_SECTIONS[section];
+  if (!cfg) throw new Error('未知展示區：' + section);
+  const ordered = reconcileDisplayOrderV72D_(section);
+  const byId = {};
+  getAllAdminArtworksV72_().forEach(a=>byId[String(a.artworkId||a.id||'').trim()]=a);
+  const items = ordered.map((id,i)=>{
+    const a = byId[id] || {};
+    return {
+      artworkId:id, sort:i+1, titleZh:a.titleZh||a.originalFileName||'未命名作品', titleEn:a.titleEn||'',
+      artistName:a.artistName||'', libraryId:a.libraryId||'', librarySheetName:a.librarySheetName||'',
+      thumbUrl:a.thumbUrl||a.imageUrl||'', imageUrl:a.imageUrl||a.thumbUrl||'', originalFileName:a.originalFileName||''
+    };
+  });
+  return {ok:true, version:CMS.version, section, sectionLabel:cfg.label, items, total:items.length};
+}
+
+function saveDisplayOrderV72D_(token, data) {
+  assertAdminToken_(token);
+  const section = String(data.section||'').trim();
+  if (!CMS_DISPLAY_SECTIONS[section]) throw new Error('未知展示區：' + section);
+  const ids = Array.isArray(data.artworkIds) ? data.artworkIds.map(v=>String(v||'').trim()).filter(Boolean) : [];
+  const unique = Array.from(new Set(ids));
+  const selected = getSelectedArtworkIdsV72D_(section);
+  const selectedSet = new Set(selected), uniqueSet = new Set(unique);
+  if (unique.length !== selected.length || unique.some(id=>!selectedSet.has(id)) || selected.some(id=>!uniqueSet.has(id))) {
+    throw new Error('排序清單已改變，請重新載入後再排序。');
+  }
+  writeDisplaySectionV72D_(section, unique);
+  return {ok:true, section, savedCount:unique.length, message:'已儲存 '+CMS_DISPLAY_SECTIONS[section].label+' 排序'};
 }

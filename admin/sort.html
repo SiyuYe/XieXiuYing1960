@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>統一排序中心｜CMS v7.2-D</title>
+<link rel="stylesheet" href="../style.css"><link rel="stylesheet" href="admin.css">
+</head>
+<body class="admin-page">
+<main class="admin-wide sort-center-page">
+<header class="admin-top">
+  <div><h1>統一排序中心</h1><p>只列出已勾選的作品。拖曳後儲存，系統會自動重編 1、2、3……。</p></div>
+  <div><a class="btn ghost" href="works.html">作品管理</a><a class="btn ghost" href="index.html">後台首頁</a></div>
+</header>
+<section class="sort-tabs" role="tablist" aria-label="展示區">
+  <button class="sort-tab active" data-section="homeHero" type="button">首頁輪播</button>
+  <button class="sort-tab" data-section="featured" type="button">精選作品</button>
+  <button class="sort-tab" data-section="gallery" type="button">線上藝廊</button>
+  <button class="sort-tab" data-section="showcase" type="button">作品展示</button>
+</section>
+<section class="sort-toolbar">
+  <div><strong id="sortTitle">首頁輪播</strong><span id="sortCount">讀取中…</span></div>
+  <button id="saveSort" class="btn primary" type="button" disabled>儲存排序</button>
+</section>
+<p id="sortMessage" class="admin-status">讀取中…</p>
+<section id="sortList" class="sort-list" aria-live="polite"></section>
+</main>
+<script src="../api/cms.js"></script>
+<script>
+const list=document.getElementById('sortList'),msg=document.getElementById('sortMessage'),saveBtn=document.getElementById('saveSort');
+let section='homeHero', items=[], dragging=null, dirty=false;
+function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+function img(a){return a.thumbUrl||a.imageUrl||'../assets/images/art-placeholder-1.svg';}
+function render(){
+  document.getElementById('sortCount').textContent=`共 ${items.length} 件`;
+  list.innerHTML=items.length?items.map((a,i)=>`<article class="sort-item" draggable="true" data-id="${esc(a.artworkId)}">
+    <button class="drag-handle" type="button" title="拖曳排序" aria-label="拖曳排序">☰</button>
+    <span class="sort-number">${i+1}</span>
+    <img src="${esc(img(a))}" loading="lazy" decoding="async" alt="">
+    <div class="sort-copy"><strong>${esc(a.titleZh||'未命名作品')}</strong><small>${esc(a.artworkId)}｜${esc(a.artistName||'')}</small></div>
+    <div class="sort-moves"><button type="button" data-move="up" aria-label="往上">↑</button><button type="button" data-move="down" aria-label="往下">↓</button></div>
+  </article>`).join(''):'<div class="sort-empty">目前沒有已勾選的作品。請先到「作品管理」勾選此展示區。</div>';
+  saveBtn.disabled=!dirty||!items.length;
+}
+async function load(sec){
+  section=sec;dirty=false;saveBtn.disabled=true;msg.textContent='讀取中…';list.innerHTML='';
+  document.querySelectorAll('.sort-tab').forEach(b=>b.classList.toggle('active',b.dataset.section===sec));
+  try{const data=await XxyCms.displayOrder(sec,{cacheMs:0});items=data.items||[];document.getElementById('sortTitle').textContent=data.sectionLabel||'';msg.textContent='直接拖曳作品，或使用右側上下按鈕。';render();}
+  catch(e){msg.innerHTML='<span class="error">讀取失敗：'+esc(e.message)+'</span>';}
+}
+function move(id,delta){const i=items.findIndex(x=>x.artworkId===id),j=i+delta;if(i<0||j<0||j>=items.length)return;[items[i],items[j]]=[items[j],items[i]];dirty=true;render();}
+list.addEventListener('click',e=>{const b=e.target.closest('[data-move]');if(!b)return;const item=b.closest('.sort-item');move(item.dataset.id,b.dataset.move==='up'?-1:1);});
+list.addEventListener('dragstart',e=>{const row=e.target.closest('.sort-item');if(!row)return;dragging=row.dataset.id;row.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
+list.addEventListener('dragend',e=>{const row=e.target.closest('.sort-item');if(row)row.classList.remove('dragging');dragging=null;});
+list.addEventListener('dragover',e=>{e.preventDefault();const over=e.target.closest('.sort-item');if(!over||!dragging||over.dataset.id===dragging)return;const from=items.findIndex(x=>x.artworkId===dragging),to=items.findIndex(x=>x.artworkId===over.dataset.id);if(from<0||to<0)return;const [moved]=items.splice(from,1);items.splice(to,0,moved);dirty=true;render();const newRow=list.querySelector(`[data-id="${CSS.escape(dragging)}"]`);if(newRow)newRow.classList.add('dragging');});
+document.querySelectorAll('.sort-tab').forEach(b=>b.onclick=()=>{if(dirty&&!confirm('尚未儲存排序，確定切換嗎？'))return;load(b.dataset.section);});
+saveBtn.onclick=async()=>{saveBtn.disabled=true;msg.textContent='儲存中…';try{const res=await XxyCms.saveDisplayOrder(section,items.map(x=>x.artworkId));dirty=false;msg.textContent=res.message||'已儲存排序';render();}catch(e){msg.innerHTML='<span class="error">儲存失敗：'+esc(e.message)+'</span>';saveBtn.disabled=false;}};
+window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
+load(section);
+</script>
+</body></html>
