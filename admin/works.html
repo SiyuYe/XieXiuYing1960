@@ -357,19 +357,61 @@ async function savePayload(payload){
  return XxyCms.post('adminUpdateArtwork',payload);
 }
 drawerForm.elements.artworkTypeId.addEventListener('change',e=>{
- const now=String(e.target.value||'');if(now===drawerOriginalType)return;const d=typeDefaults(now);
- if(d){const msg=drawerOriginalType?'作品類型已變更為「'+(d.nameZh||now)+'」，是否套用此類型的預設材質與媒材？':'第一次設定作品類型為「'+(d.nameZh||now)+'」，是否套用預設材質與媒材？';
-  if(confirmTypeDefaults(msg)){if(d.defaultMaterialId)drawerForm.elements.materialId.value=d.defaultMaterialId;drawerForm.elements.mediumId.value=splitIds(d.defaultMediumIds).join(',');updateMediumButton(document.getElementById('drawerMediumButton'),drawerForm.elements.mediumId.value,d.defaultMediumNames);}
- }
- drawerOriginalType=now;
+const now = String(e.target.value || '');
+
+if (now === drawerOriginalType) return;
+
+// 作品類型變更時，不再詢問，也不再自動套用預設材質與媒材
+drawerOriginalType = now;
 });
-drawerForm.addEventListener('submit',async e=>{
- e.preventDefault();const id=drawerForm.dataset.id;const payload={artworkId:id};
- ['titleZh','titleEn','year','size','artworkTypeId','subjectIds','materialId','mediumId','collectionStatusId','collectionCurrency','description'].forEach(k=>payload[k]=drawerForm.elements[k].value);
- ['isPublic','isHomeHero','isFeatured','isGallery','isShowcase'].forEach(k=>payload[k]=drawerForm.elements[k].checked);
- const msg=document.getElementById('drawerMessage');msg.textContent='儲存中…';
- try{await savePayload(payload);msg.textContent='已儲存';XxyCms.clearCache();setTimeout(()=>load(true),300);}
- catch(e){msg.textContent='儲存失敗：'+e.message;}
+
+drawerForm.addEventListener('submit', async e => {
+  e.preventDefault();
+
+  const id = drawerForm.dataset.id;
+  const payload = {
+    artworkId: id
+  };
+
+  [
+    'titleZh',
+    'titleEn',
+    'year',
+    'size',
+    'artworkTypeId',
+    'subjectIds',
+    'materialId',
+    'mediumId',
+    'collectionStatusId',
+    'collectionCurrency',
+    'description'
+  ].forEach(k => {
+    payload[k] = drawerForm.elements[k].value;
+  });
+
+  [
+    'isPublic',
+    'isHomeHero',
+    'isFeatured',
+    'isGallery',
+    'isShowcase'
+  ].forEach(k => {
+    payload[k] = drawerForm.elements[k].checked;
+  });
+
+  const msg = document.getElementById('drawerMessage');
+  msg.textContent = '儲存中…';
+
+  try {
+    await savePayload(payload);
+    msg.textContent = '已儲存';
+
+    XxyCms.clearCache();
+
+    setTimeout(() => load(true), 300);
+  } catch (e) {
+    msg.textContent = '儲存失敗：' + e.message;
+  }
 });
 
 function openMediumPicker(target){
@@ -389,29 +431,76 @@ document.getElementById('mediumApply').onclick=()=>{
 };
 document.querySelectorAll('[data-medium-close],#mediumCancel').forEach(el=>el.addEventListener('click',closeMediumPicker));
 document.getElementById('drawerMediumButton').addEventListener('click',e=>openMediumPicker(e.currentTarget));
+function confirmTypeDefaults(message){
+  return window.confirm(
+    message +
+    '\n\n按「確定」套用預設材質與媒材；按「取消」保留目前設定。'
+  );
+}
 
-function confirmTypeDefaults(message){return window.confirm(message+'\n\n按「確定」套用預設材質與媒材；按「取消」保留目前設定。');}
 function handleTypeChangeForRow(select){
- const tr=select.closest('tr');const old=String(select.dataset.originalType||'');const now=String(select.value||'');if(old===now)return;
- const d=typeDefaults(now);if(d){const label=d.nameZh||now;const msg=old?'作品類型已變更為「'+label+'」，是否套用此類型的預設材質與媒材？':'第一次設定作品類型為「'+label+'」，是否套用預設材質與媒材？';if(confirmTypeDefaults(msg))applyTypeDefaultsToRow(tr,now);}
- select.dataset.originalType=now;markRowDirty(tr,true);
+  const tr = select.closest('tr');
+  const old = String(select.dataset.originalType || '');
+  const now = String(select.value || '');
+
+  if (old === now) return;
+
+  // 作品類型變更時，不再詢問，也不再自動套用預設材質與媒材
+  select.dataset.originalType = now;
+  markRowDirty(tr, true);
 }
 
 function updateBatchPanel(){
- const count=selected.size;document.getElementById('selectedCount').textContent=count;
- document.getElementById('batchPanel').hidden=count===0;
- document.querySelectorAll('[data-select]').forEach(el=>el.checked=selected.has(el.dataset.select));
- const all=[...loaded.keys()];const allChecked=all.length>0&&all.every(id=>selected.has(id));
- const box=document.getElementById('selectAllLoaded');box.checked=allChecked;box.indeterminate=!allChecked&&all.some(id=>selected.has(id));
+  const count = selected.size;
+  document.getElementById('selectedCount').textContent = count;
+  document.getElementById('batchPanel').hidden = count === 0;
+
+  document.querySelectorAll('[data-select]').forEach(el => {
+    el.checked = selected.has(el.dataset.select);
+  });
+
+  const all = [...loaded.keys()];
+  const allChecked = all.length > 0 && all.every(id => selected.has(id));
+
+  const box = document.getElementById('selectAllLoaded');
+  box.checked = allChecked;
+  box.indeterminate =
+    !allChecked && all.some(id => selected.has(id));
 }
-function clearSelection(){selected.clear();updateBatchPanel();}
-document.addEventListener('change',e=>{
- const box=e.target.closest('[data-select]');
- if(box){box.checked?selected.add(box.dataset.select):selected.delete(box.dataset.select);updateBatchPanel();}
+
+function clearSelection(){
+  selected.clear();
+  updateBatchPanel();
+}
+
+document.addEventListener('change', e => {
+  const box = e.target.closest('[data-select]');
+
+  if (box){
+    if (box.checked){
+      selected.add(box.dataset.select);
+    } else {
+      selected.delete(box.dataset.select);
+    }
+
+    updateBatchPanel();
+  }
 });
-document.getElementById('selectAllLoaded').addEventListener('change',e=>{
- [...loaded.keys()].forEach(id=>e.target.checked?selected.add(id):selected.delete(id));updateBatchPanel();
-});
+
+document
+  .getElementById('selectAllLoaded')
+  .addEventListener('change', e => {
+    [...loaded.keys()].forEach(id => {
+      if (e.target.checked){
+        selected.add(id);
+      } else {
+        selected.delete(id);
+      }
+    });
+
+    updateBatchPanel();
+  });
+
 document.getElementById('clearSelection').onclick=clearSelection;
 function masterRows(field){
  if(field==='artworkTypeId')return [meta.artworkTypes,'typeId','nameZh','artworkTypeName'];
