@@ -1,7 +1,7 @@
 // 謝秀英藝術館 CMS v7.5
-const DATA_VERSION='cms-v7.7.3-fast-first-paint';
+const DATA_VERSION='cms-v7.8.1-gallery-fix';
 const LOCAL_FILES={config:'data/site-config.json',home:'data/home.json',pages:'data/pages.json',artworks:'data/artworks.json',exhibitions:'data/exhibitions.json'};
-let siteConfig=null,homeData=null,pageData=null,artworks=[],exhibitions=[],historyItems=[],books=[],imageManifest={artworks:{},artworkOrder:[],teacherPhotos:{1600:['images/yingphoto/1600/xiexiuying001.webp'],600:['images/yingphoto/600/xiexiuying001.webp']}};
+let siteConfig=null,homeData=null,pageData=null,artworks=[],exhibitions=[],historyItems=[],books=[],galleryShows=[],imageManifest={artworks:{},artworkOrder:[],teacherPhotos:{1600:['images/yingphoto/1600/xiexiuying001.webp'],600:['images/yingphoto/600/xiexiuying001.webp']}};
 let heroTimer=null,uiEffectsReady=false;
 const fallbackArtworks=[];
 async function fetchJson(path){
@@ -19,9 +19,10 @@ function staticArtworkUrl(a,size='1200'){const id=normalizeArtworkId(a);return /
 function normalizeBundle(bundle,localConfig){
  if(!bundle||!bundle.ok)return null; const settings=bundle.settings||{},brand=localConfig?.brand||{};
  const config={...(localConfig||{}),backendMode:'appsScript',brand:{zh:settings.artistNameZh||brand.zh||'謝秀英',en:settings.artistNameEn||brand.en||'Xie Xiu-Ying',mark:settings.artistMark||brand.mark||'秀',siteName:settings.siteName||brand.siteName||'謝秀英書畫藝術館'},nav:settings.nav||localConfig?.nav||[],homeQuickNav:settings.homeQuickNav||localConfig?.homeQuickNav||[],facebookUrl:settings.facebookUrl||localConfig?.facebookUrl||'https://www.facebook.com/XieXiuYing1960/',facebookPostUrls:settings.facebookPostUrls||[],contactReasons:settings.contactReasons||localConfig?.contactReasons||[],showNotice:settings.showNotice==null?true:truth(String(settings.showNotice).trim())};
- const home=bundle.home?{hero:{eyebrow:bundle.home.heroEyebrow,title:bundle.home.heroTitle,subtitle:bundle.home.heroSubtitle,primaryButton:{label:bundle.home.heroPrimaryLabel,href:bundle.home.heroPrimaryHref},secondaryButton:{label:bundle.home.heroSecondaryLabel,href:bundle.home.heroSecondaryHref}},announcements:(bundle.announcements||[]).map(n=>({date:n.date||'',title:n.title||'',text:n.summary||n.text||''})),onlineShow:(bundle.gallery&&bundle.gallery[0])?{eyebrow:'Online Exhibition',title:bundle.gallery[0].title,period:bundle.gallery[0].period,text:bundle.gallery[0].description,button:{label:'立即參觀',href:'gallery.html'}}:{},quote:{text:bundle.home.quoteText,author:bundle.home.quoteAuthor},facebook:{title:bundle.home.facebookTitle,text:bundle.home.facebookText,button:'前往粉專'}}:null;
+ const currentGallery=(bundle.gallery||[]).find(g=>truth(g.isCurrent)&&(g.isPublic==null||truth(g.isPublic)))||(bundle.gallery||[]).find(g=>g.isPublic==null||truth(g.isPublic))||null;
+ const home=bundle.home?{hero:{eyebrow:bundle.home.heroEyebrow,title:bundle.home.heroTitle,subtitle:bundle.home.heroSubtitle,primaryButton:{label:bundle.home.heroPrimaryLabel,href:bundle.home.heroPrimaryHref},secondaryButton:{label:bundle.home.heroSecondaryLabel,href:bundle.home.heroSecondaryHref}},announcements:(bundle.announcements||[]).map(n=>({date:n.date||'',title:n.title||'',text:n.summary||n.text||''})),onlineShow:currentGallery?{eyebrow:'Online Exhibition',title:currentGallery.title,period:currentGallery.period,text:currentGallery.description,button:{label:'立即參觀',href:'gallery.html'}}:{},quote:{text:bundle.home.quoteText,author:bundle.home.quoteAuthor},facebook:{title:bundle.home.facebookTitle,text:bundle.home.facebookText,button:'前往粉專'}}:null;
  const mapped=(bundle.artworks||[]).map((a,index)=>({...a,__staticOrder:index,id:a.artworkId||a.id,titleZh:a.titleZh||'',titleEn:a.titleEn||'',image:staticArtworkUrl(a,'1200'),thumbnail:staticArtworkUrl(a,'1200'),featured:truth(a.isFeatured),hero:truth(a.isHomeHero),gallery:truth(a.isGallery),public:!(a.isPublic===false||String(a.isPublic).toUpperCase()==='FALSE')}));
- return {config,home,pages:bundle.pages||{},artworks:mapped,exhibitions:bundle.exhibitions||[],history:bundle.history||[],books:bundle.books||[]};
+ return {config,home,pages:bundle.pages||{},artworks:mapped,exhibitions:bundle.exhibitions||[],history:bundle.history||[],books:bundle.books||[],gallery:bundle.gallery||[]};
 }
 async function loadBackendBundle(config){
  if(!window.XxyCms)return null;
@@ -40,7 +41,7 @@ async function initData(){
  ]);
  siteConfig=local[0];if(local[1])imageManifest=local[1];homeData=local[2];pageData=local[3];artworks=local[4]||[];exhibitions=local[5]||[];
  seedArtworkImagesFromManifest_();normalizeArtworkList_();renderSite_();
- const refresh=()=>loadBackendBundle(siteConfig).then(b=>{if(!b)return;siteConfig=b.config||siteConfig;homeData=b.home||homeData;pageData=b.pages||pageData;artworks=b.artworks||artworks;exhibitions=b.exhibitions||exhibitions;historyItems=b.history||historyItems;books=b.books||books;normalizeArtworkList_();renderSite_();}).catch(()=>{});
+ const refresh=()=>loadBackendBundle(siteConfig).then(b=>{if(!b)return;siteConfig=b.config||siteConfig;homeData=b.home||homeData;pageData=b.pages||pageData;artworks=b.artworks||artworks;exhibitions=b.exhibitions||exhibitions;historyItems=b.history||historyItems;books=b.books||books;galleryShows=b.gallery||galleryShows;normalizeArtworkList_();renderSite_();}).catch(()=>{});
  const schedule=()=>setTimeout(refresh,3500);
  if(document.readyState==='complete')schedule();else addEventListener('load',schedule,{once:true});
 }
@@ -50,8 +51,14 @@ function seedArtworkImagesFromManifest_(){
  const ids=(imageManifest.artworkOrder||[]).map(v=>String(v||'').toUpperCase()).filter(v=>/^XH\d{4}$/.test(v));
  artworks=ids.map((id,index)=>({id,artworkId:id,titleZh:'',titleEn:'',year:'',size:'',featured:index<8,hero:index<3,gallery:true,public:true,isPublic:true,__staticOrder:index}));
 }
-function normalizeArtworkList_(){artworks=(Array.isArray(artworks)?artworks:[]).map((a,index)=>({...a,__staticOrder:Number.isInteger(a.__staticOrder)?a.__staticOrder:index})).filter(a=>a.public!==false&&a.isPublic!==false);}
-function renderSite_(){renderCommonShell();renderHome();renderSubpage();requestAnimationFrame(()=>{initArtSections();renderExhibitions();renderHistory();document.querySelectorAll('.page-loading').forEach(el=>el.remove());initContactForm();if(!uiEffectsReady){initUiEffects();uiEffectsReady=true;}});}
+function normalizeArtworkList_(){
+ const seen=new Set();
+ artworks=(Array.isArray(artworks)?artworks:[])
+  .map((a,index)=>({...a,__staticOrder:Number.isInteger(a.__staticOrder)?a.__staticOrder:index}))
+  .filter(a=>a.public!==false&&a.isPublic!==false)
+  .filter(a=>{const id=normalizeArtworkId(a)||String(a.id||'').trim();if(!id)return true;if(seen.has(id))return false;seen.add(id);return true;});
+}
+function renderSite_(){renderCommonShell();renderHome();renderSubpage();requestAnimationFrame(()=>{initArtSections();renderCurrentGalleryInfo();renderExhibitions();renderHistory();initContactForm();if(!uiEffectsReady){initUiEffects();uiEffectsReady=true;}});}
 function shuffle(list){const a=[...list];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 function valueList(a){return [a.artworkTypeName||a.categoryZh,a.subjectNames,a.material,a.medium].filter(v=>String(v||'').trim());}
 function titleLines(a){return [a.titleZh,a.titleEn].filter(v=>String(v||'').trim());}
@@ -63,7 +70,7 @@ function artInfoHtml(a){const titles=titleLines(a),infos=infoLines(a);return `<d
 function card(a){return `<button class="art-card protected-image" type="button" data-watermark="謝秀英" data-art-id="${esc(a.id||a.artworkId||'')}"><img src="${esc(imgSrc(a))}" alt="${esc(artTitle(a)||'謝秀英作品')}" draggable="false" loading="lazy" decoding="async" width="1200" height="1200">${artInfoHtml(a)}</button>`;}
 function renderCommonShell(){
  const brand=siteConfig?.brand||{};const isHome=document.body.dataset.page==='home';document.querySelectorAll('.brand').forEach(el=>el.innerHTML=`<span class="brand-mark"><img src="assets/icons/icon-192.png" alt="謝秀英代表作圖示"></span><span><strong>${esc(isHome?(brand.siteName||'謝秀英書畫藝術館'):(brand.zh||'謝秀英'))}</strong><small>${esc(isHome?'XIE XIU-YING ART MUSEUM':(brand.en||'Xie Xiu-Ying'))}</small></span>`);
- const page=document.body.dataset.page;document.querySelectorAll('.main-nav').forEach(nav=>nav.innerHTML=(siteConfig?.nav||[]).map(i=>`<a class="nav-link ${i.id===page?'active':''}" href="${esc(i.href)}">${esc(i.label)}</a>`).join(''));
+ const page=document.body.dataset.page;document.querySelectorAll('.main-nav').forEach(nav=>nav.innerHTML=(siteConfig?.nav||[]).map(i=>`<a class="nav-link ${i.id===page?'active':''}" href="${esc(i.href)}">${esc(i.id==='home'?'首頁':i.label)}</a>`).join(''));
 }
 function nl(s=''){return esc(s).replace(/\r?\n/g,'<br>');}
 function renderHome(){
@@ -114,15 +121,21 @@ function renderSubpage(){
  const d=(pageData&&pageData[page])||{};
  const labels={
   about:['ABOUT ARTIST','謝秀英 字：馥宇，號：無心居士。'],
-  gallery:['ONLINE GALLERY','探索老師精選作品'],
+  gallery:['ONLINE GALLERY','歡迎蒞臨線上藝廊，欣賞每一期精選展覽與藝術收藏。'],
   works:['COLLECTIONS','歷年作品完整收藏'],
   exhibitions:['EXHIBITIONS','個展與聯展紀錄'],
   history:['ARCHIVE','歷史典藏與出版'],
-  contact:['CONTACT','歡迎收藏、合作與教學邀約']
+  contact:['CONTACT','歡迎收藏、演講、展覽或合作邀約']
  };
  const pair=labels[page]||[d.eyebrow||'',d.subtitle||''];
  const hero=document.querySelector('.page-hero');if(hero)hero.innerHTML=`<p class="eyebrow">${esc(pair[0])}</p><p class="page-brief">${esc(pair[1])}</p>`;
- const c=document.querySelector('[data-dynamic-sections]');if(c&&Array.isArray(d.sections))c.innerHTML=d.sections.map(s=>`<section class="content-card"><h2>${esc(s.title||'')}</h2><p class="multiline">${nl(s.body||'')}</p></section>`).join('');
+ const c=document.querySelector('[data-dynamic-sections]');if(c)c.innerHTML=(page==='about'&&Array.isArray(d.sections))?d.sections.map(s=>`<section class="content-card"><h2>${esc(s.title||'')}</h2><p class="multiline">${nl(s.body||'')}</p></section>`).join(''):'';
+}
+function renderCurrentGalleryInfo(){
+ const host=document.querySelector('#currentGalleryInfo');if(!host)return;
+ const row=(galleryShows||[]).find(g=>truth(g.isCurrent)&&(g.isPublic==null||truth(g.isPublic)));
+ if(!row){host.innerHTML='<p class="page-loading">讀取中…</p>';return;}
+ host.innerHTML=`<div class="current-gallery-card"><h2>${esc(row.title||'')}</h2>${row.period?`<p class="gallery-period">${esc(row.period)}</p>`:''}${row.description?`<p class="multiline">${nl(row.description)}</p>`:''}</div>`;
 }
 function initArtSections(){
  const pool=shuffle(artworks.filter(a=>a.featured!==false)),heroes=pool.filter(a=>a.hero===true),heroPool=(heroes.length?heroes:pool).slice(0,3),ids=new Set(heroPool.map(a=>a.id));let feat=pool.filter(a=>!ids.has(a.id));

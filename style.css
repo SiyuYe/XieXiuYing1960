@@ -234,3 +234,30 @@ body[data-page="home"] .artist-profile-overlay .btn{padding:9px 12px;font-size:1
 @media(max-width:390px){
   .museum-nav-shell .nav-link{font-size:22px;padding-inline:13px}
 }
+
+
+/* CMS v7.8.1：橫幅折衷裁切、導覽列獨立、藝廊資訊修正 */
+.museum-header{padding:0;background:#f5ecdf;border-bottom:1px solid rgba(133,101,64,.18)}
+.museum-banner-frame{height:clamp(360px,28vw,540px);background:#f5ecdf}
+.museum-banner-image{object-fit:cover;object-position:center 45%}
+.museum-nav-shell{
+  width:100%;max-width:none;margin:0;padding:10px 20px;border:0;border-radius:0;
+  background:#fff;backdrop-filter:none;box-shadow:0 8px 22px rgba(36,67,63,.08)
+}
+.museum-nav-shell .main-nav{max-width:1180px;margin:0 auto;justify-content:center;padding:0;gap:8px}
+.museum-nav-shell .nav-link{background:transparent;border-radius:999px;color:#405350;text-shadow:none}
+.museum-nav-shell .nav-link.active{background:linear-gradient(135deg,var(--main),var(--main-dark));color:#fff;box-shadow:0 10px 20px rgba(107,194,186,.25)}
+.current-gallery-info{width:min(1180px,calc(100% - 40px));margin:10px auto 0}
+.current-gallery-card{padding:24px 30px;border-radius:24px;background:rgba(255,255,255,.88);border:1px solid var(--line);box-shadow:var(--shadow);text-align:center}
+.current-gallery-card h2{margin:0 0 8px;font-size:clamp(26px,4vw,42px)}
+.current-gallery-card .gallery-period{margin:0 0 10px;color:var(--main-dark);font-weight:800}
+.current-gallery-card .multiline{margin:0;color:var(--muted);line-height:1.75}
+.page-loading{text-align:center;padding:18px;margin:0!important}
+@media(max-width:900px){.museum-banner-frame{height:clamp(300px,42vw,430px)}.museum-banner-image{object-position:center 42%}}
+@media(max-width:620px){
+ .museum-banner-frame{height:auto;aspect-ratio:2/1}.museum-banner-image{object-fit:contain;object-position:center}
+ .museum-nav-shell{width:100%;margin:0;padding:7px 0 8px;border-radius:0;background:#fff}
+ .museum-nav-shell .main-nav{justify-content:flex-start;padding:4px 24px 10px}
+ .current-gallery-info{width:calc(100% - 24px)}
+ .current-gallery-card{padding:20px 16px}
+}

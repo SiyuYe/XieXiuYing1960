@@ -1,8 +1,50 @@
 {
-  "about": {"eyebrow":"About", "title":"關於秀英", "subtitle":"謝秀英，字馥宇，號無心居士。", "sections":[{"title":"創作理念", "body":"以書畫來美化這個世界，以書畫來滋長塵世藝緣，以書畫來安慰人的心靈，以書畫來累積一世香氣。"},{"title":"學歷", "body":"國立台灣藝術大學書畫藝術學系。"},{"title":"現任與經歷", "body":"新竹縣政府文化局研習班國畫指導老師、香雪海畫室個人創作、中華民國心齋藝術學會創會理事長、新竹縣美術協會第十三屆理事長。"}]},
-  "gallery": {"eyebrow":"Online Gallery", "title":"藝廊", "subtitle":"放置每期線上展覽、主題展與精選作品。", "sections":[{"title":"本期展覽資料來源", "body":"正式版將從 Google 試算表的 Exhibitions 工作表讀取展名、展期、展覽介紹與作品清單。"}]},
-  "works": {"eyebrow":"Works", "title":"作品集", "subtitle":"所有作品分類總覽，中英並用，含尺寸、材質、年份與典藏狀態。", "sections":[{"title":"作品資料來源", "body":"正式版將從 Google 試算表的 Artworks 工作表讀取，不再寫死於 HTML。"}]},
-  "exhibitions": {"eyebrow":"Exhibitions", "title":"展覽經歷", "subtitle":"個展、聯展、師生展、評審與義賣活動。", "sections":[{"title":"資料管理", "body":"展覽經歷可由後台工作表維護，依年份排序後呈現在官網。"}]},
-  "history": {"eyebrow":"Archive", "title":"歷史回顧", "subtitle":"收錄報導連結、自傳出版、畫冊與歷史資料。", "sections":[{"title":"39本戶口名簿", "body":"自傳出版資料可於 History 工作表管理，放入書籍介紹、連結與封面圖。"}]},
-  "contact": {"eyebrow":"Contact", "title":"聯絡", "subtitle":"作品收藏、展覽邀約、課程研習、媒體採訪與其他合作需求。"}
+  "about": {
+    "eyebrow": "About",
+    "title": "關於秀英",
+    "subtitle": "謝秀英，字馥宇，號無心居士。",
+    "sections": [
+      {
+        "title": "創作理念",
+        "body": "以書畫來美化這個世界，以書畫來滋長塵世藝緣，以書畫來安慰人的心靈，以書畫來累積一世香氣。"
+      },
+      {
+        "title": "學歷",
+        "body": "國立台灣藝術大學書畫藝術學系。"
+      },
+      {
+        "title": "現任與經歷",
+        "body": "新竹縣政府文化局研習班國畫指導老師、香雪海畫室個人創作、中華民國心齋藝術學會創會理事長、新竹縣美術協會第十三屆理事長。"
+      }
+    ]
+  },
+  "gallery": {
+    "eyebrow": "Online Gallery",
+    "title": "藝廊",
+    "subtitle": "歡迎蒞臨線上藝廊，欣賞每一期精選展覽與藝術收藏。",
+    "sections": []
+  },
+  "works": {
+    "eyebrow": "Works",
+    "title": "作品集",
+    "subtitle": "所有作品分類總覽，中英並用，含尺寸、材質、年份與典藏狀態。",
+    "sections": []
+  },
+  "exhibitions": {
+    "eyebrow": "Exhibitions",
+    "title": "展覽經歷",
+    "subtitle": "個展、聯展、師生展、評審與義賣活動。",
+    "sections": []
+  },
+  "history": {
+    "eyebrow": "Archive",
+    "title": "歷史回顧",
+    "subtitle": "收錄報導連結、自傳出版、畫冊與歷史資料。",
+    "sections": []
+  },
+  "contact": {
+    "eyebrow": "Contact",
+    "title": "聯絡",
+    "subtitle": "歡迎收藏、演講、展覽或合作邀約"
+  }
 }
