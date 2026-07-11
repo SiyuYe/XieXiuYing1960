@@ -261,3 +261,62 @@ body[data-page="home"] .artist-profile-overlay .btn{padding:9px 12px;font-size:1
  .current-gallery-info{width:calc(100% - 24px)}
  .current-gallery-card{padding:20px 16px}
 }
+
+/* CMS V7.8.2：橫幅桌面裁切與手機導覽簡化 */
+@media (min-width: 901px){
+  .museum-banner-frame{
+    height:clamp(340px,25vw,470px);
+    overflow:hidden;
+  }
+  .museum-banner-image{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    object-position:center top;
+  }
+}
+
+@media (max-width: 900px){
+  .museum-nav-shell .nav-link.active::after,
+  .nav-link.active::after{
+    content:none !important;
+    display:none !important;
+  }
+  .museum-nav-shell .nav-link.active{
+    background:linear-gradient(135deg,var(--main),var(--main-dark));
+    color:#fff;
+    box-shadow:0 10px 20px rgba(107,194,186,.25);
+  }
+}
+
+
+/* CMS v7.8.3：手機人物卡橫向資訊列＋輪播資訊單行化 */
+@media(max-width:620px){
+  body[data-page="home"] .artist-profile-overlay{
+    grid-template-columns:minmax(0,1fr) auto!important;
+    grid-template-areas:"name actions" "en actions" "sub sub"!important;
+    column-gap:10px;row-gap:1px;padding:13px 14px!important;
+  }
+  body[data-page="home"] .artist-profile-overlay h1{font-size:22px!important;grid-area:name}
+  body[data-page="home"] .artist-name-en{grid-area:en}
+  body[data-page="home"] .artist-profile-overlay .hero-sub{grid-area:sub;margin-top:6px}
+  body[data-page="home"] .artist-profile-overlay .hero-actions{
+    grid-area:actions!important;align-self:center;margin-top:0!important;display:flex!important;grid-template-columns:none!important;width:auto!important;gap:6px;
+  }
+  body[data-page="home"] .artist-profile-overlay .btn{width:auto!important;min-width:0;padding:9px 11px!important;font-size:0!important;white-space:nowrap}
+  body[data-page="home"] .artist-profile-overlay .btn::after{content:attr(data-short);font-size:12px}
+}
+.slide-caption strong,.slide-caption small{display:block;white-space:normal;overflow-wrap:anywhere}
+.slide-caption strong{line-height:1.4}
+.slide-caption small{line-height:1.45;margin-top:4px}
+
+/* CMS V7.8.4：關於頁首卡上移＋首頁首區間距統一 */
+body[data-page="about"] [data-dynamic-sections] > .content-card:first-child{
+  margin-top:14px!important;
+}
+body[data-page="home"] .home-hero{
+  padding-bottom:0!important;
+}
+@media(max-width:900px){
+  body[data-page="home"] .home-hero{padding-bottom:0!important}
+}
