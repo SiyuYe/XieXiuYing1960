@@ -1,13 +1,24 @@
-const CACHE_NAME='hsieh-artist-cms-v7-5-3';
-const ASSETS=['./','./index.html','./style.css','./app.js','./manifest.json','./data/site-config.json','./data/home.json','./data/pages.json','./data/artworks.json','./data/exhibitions.json','./yingphoto/photos.json','./yingphoto/photo1.jpg','./yingphoto/photo2.jpg','./yingphoto/photo3.jpg','./yingphoto/photo4.jpg','./yingphoto/photo5.jpg','./yingphoto/photo6.jpg','./admin/apps-script/Code.gs','./about.html','./gallery.html','./works.html','./exhibitions.html','./history.html','./contact.html','./admin/sort.html','./admin/works.html','./admin/admin.css','./api/cms.js','./admin/index.html','./admin/settings.html','./admin/works.html','./admin/artwork-edit.html','./api/cms.js'];
-self.addEventListener('install',event=>{self.skipWaiting();event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(ASSETS).catch(()=>{})))});
+const CACHE_NAME='xxy-art-museum-v7-7-webp-1';
+const CORE_ASSETS=[
+  './','./index.html','./style.css','./app.js','./manifest.json',
+  './data/site-config.json','./data/home.json','./data/pages.json','./data/artworks.json','./data/exhibitions.json','./data/images-manifest.json',
+  './about.html','./gallery.html','./works.html','./exhibitions.html','./history.html','./contact.html',
+  './assets/icons/icon-192.png','./assets/icons/icon-512.png','./api/cms.js'
+];
+self.addEventListener('install',event=>{self.skipWaiting();event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(CORE_ASSETS).catch(()=>{})))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))));self.clients.claim()});
 self.addEventListener('fetch',event=>{
   if(event.request.method!=='GET')return;
   const url=new URL(event.request.url);
-  if(url.searchParams.has('t') || url.pathname.includes('/data/') || url.pathname.includes('/admin/') || url.pathname.includes('/api/')){
-    event.respondWith(fetch(event.request).catch(()=>caches.match(event.request)));
+  const sameOrigin=url.origin===self.location.origin;
+  if(!sameOrigin)return;
+  if(url.pathname.includes('/images/')){
+    event.respondWith(caches.match(event.request).then(hit=>hit||fetch(event.request).then(res=>{if(res.ok){const copy=res.clone();caches.open(CACHE_NAME).then(cache=>cache.put(event.request,copy));}return res;})));
     return;
   }
-  event.respondWith(fetch(event.request).then(res=>{const copy=res.clone();caches.open(CACHE_NAME).then(cache=>cache.put(event.request,copy));return res}).catch(()=>caches.match(event.request)));
+  if(url.pathname.includes('/data/')||url.pathname.includes('/admin/')||url.pathname.includes('/api/')){
+    event.respondWith(fetch(event.request).then(res=>{if(res.ok){const copy=res.clone();caches.open(CACHE_NAME).then(cache=>cache.put(event.request,copy));}return res;}).catch(()=>caches.match(event.request)));
+    return;
+  }
+  event.respondWith(caches.match(event.request).then(hit=>hit||fetch(event.request).then(res=>{if(res.ok){const copy=res.clone();caches.open(CACHE_NAME).then(cache=>cache.put(event.request,copy));}return res;})));
 });

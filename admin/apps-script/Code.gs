@@ -19,6 +19,7 @@ const CMS = {
   randomFeaturedLimit: 8,
   thumbSize: 480,
   displaySize: 1400,
+  githubPagesBase: 'https://siyuye.github.io/XieXiuYing1960',
   sheets: {
     settings: '網站設定',
     home: '首頁內容',
@@ -44,6 +45,7 @@ function onOpen() {
     .addItem('① 初始化/更新後台資料庫', 'initMuseumCms')
     .addItem('② 從 Google Drive 同步作品清單', 'syncDriveArtworks')
     .addItem('③ 重新套用表格格式', 'formatMuseumCms')
+    .addItem('④ 將作品圖片欄位改為 GitHub WebP', 'migrateArtworkImagesToGithub')
     .addSeparator()
     .addItem('API 測試：查看完整資料包', 'showApiPreview')
     .addItem('API 測試：查看作品隨機抽選', 'showRandomPreview')
@@ -213,8 +215,7 @@ function getPublicArtworks_() {
     row.isFeatured = bool_(row.isFeatured, false);
     row.isSold = bool_(row.isSold, false);
     row.isPublic = bool_(row.isPublic, true);
-    if (!row.imageUrl && row.driveFileId) row.imageUrl = driveImageUrl_(row.driveFileId, CMS.displaySize);
-    if (!row.thumbUrl && row.driveFileId) row.thumbUrl = driveImageUrl_(row.driveFileId, CMS.thumbSize);
+    githubArtworkImageUrls_(row);
     return row;
   });
 }
@@ -1078,8 +1079,7 @@ function getPublicArtworks_() {
     row.isFeatured = bool_(row.isFeatured, false);
     row.isSold = bool_(row.isSold, false);
     row.isPublic = bool_(row.isPublic, true);
-    if (!row.imageUrl && row.driveFileId) row.imageUrl = driveImageUrl_(row.driveFileId, CMS.displaySize);
-    if (!row.thumbUrl && row.driveFileId) row.thumbUrl = driveImageUrl_(row.driveFileId, CMS.thumbSize);
+    githubArtworkImageUrls_(row);
     if (!row.dataStatus) row.dataStatus = calcArtworkDataStatus_(row);
     return row;
   });
@@ -3122,6 +3122,7 @@ function getAllAdminArtworksV72_() {
       headers.forEach((h,c) => { if (h) row[h] = normalizeApiCellV72_(values[r][c]); });
       if (!String(row.artworkId || row.id || '').trim()) return;
       row.librarySheetName = lib.sheetName;
+      githubArtworkImageUrls_(row);
       out.push(row);
     }
   });
@@ -3187,6 +3188,7 @@ function getAdminArtworkV72_(id) {
 }
 
 function lightArtworkV72_(a) {
+  a = githubArtworkImageUrls_(Object.assign({}, a));
   return {
     id:a.id || a.artworkId || '',
     artworkId:a.artworkId || a.id || '',
@@ -3224,7 +3226,7 @@ function truthyV72_(v) {
  * - adminMeta：回傳作者／作品庫與所有主資料下拉選單
  * - artworksPage：補足資料表模式需要的欄位
  * ========================================================= */
-CMS.version = '7.2-C-batch-manager';
+CMS.version = '7.7.1-github-webp';
 
 function doGet(e) {
   const params = e && e.parameter ? e.parameter : {};
@@ -3282,6 +3284,7 @@ function getAdminMetaV72B_() {
 }
 
 function lightArtworkV72_(a) {
+  a = githubArtworkImageUrls_(Object.assign({}, a));
   return {
     id:a.id || a.artworkId || '',
     artworkId:a.artworkId || a.id || '',
@@ -3820,4 +3823,76 @@ function scanDuplicateArtworkLibrary_(lib) {
     sheetName:report.getName(),
     message:'檢查完成：' + lib.libraryName + ' 共掃描 ' + items.length + ' 個圖片，找到 ' + rows.length + ' 筆疑似重複紀錄。'
   };
+}
+
+
+/* =========================================================
+ * CMS v7.7.1｜GitHub WebP 圖片標準化
+ * 圖片唯一依據：artworkId，例如 XH0001。
+ * 縮圖：/images/artworks/1200/XH0001.webp
+ * 大圖：/images/artworks/2400/XH0001.webp
+ * ========================================================= */
+function githubArtworkImageUrls_(row) {
+  const id = String((row && (row.artworkId || row.id)) || '').trim().toUpperCase();
+  if (!/^XH\d{4}$/.test(id)) return row || {};
+  const base = String(CMS.githubPagesBase || 'https://siyuye.github.io/XieXiuYing1960').replace(/\/$/, '');
+  row.originalFileName = id + '.webp';
+  row.thumbUrl = base + '/images/artworks/1200/' + id + '.webp';
+  row.imageUrl = base + '/images/artworks/2400/' + id + '.webp';
+  return row;
+}
+
+function migrateArtworkImagesToGithub() {
+  const ss = SpreadsheetApp.getActive();
+  const names = (typeof getArtworkLibrarySheetNames_ === 'function')
+    ? getArtworkLibrarySheetNames_()
+    : ['謝秀英作品庫', '收藏品作品庫', CMS.sheets.artworks];
+  const unique = [...new Set(names.filter(Boolean))];
+  let changed = 0;
+  const report = [];
+  unique.forEach(name => {
+    const sh = ss.getSheetByName(name);
+    if (!sh || sh.getLastRow() < 3) return;
+    const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(v => String(v || '').trim());
+    const col = key => headers.indexOf(key) + 1;
+    const idCol = col('artworkId') || col('id');
+    if (!idCol) return;
+    let fileCol = col('originalFileName');
+    let imageCol = col('imageUrl');
+    let thumbCol = col('thumbUrl');
+    // 欄位不存在時，安全地加在最右側，不移動既有資料。
+    [['originalFileName', fileCol], ['imageUrl', imageCol], ['thumbUrl', thumbCol]].forEach(pair => {
+      if (!pair[1]) {
+        sh.insertColumnAfter(sh.getLastColumn());
+        sh.getRange(1, sh.getLastColumn()).setValue(pair[0]);
+        headers.push(pair[0]);
+      }
+    });
+    fileCol = headers.indexOf('originalFileName') + 1;
+    imageCol = headers.indexOf('imageUrl') + 1;
+    thumbCol = headers.indexOf('thumbUrl') + 1;
+    const lastRow = sh.getLastRow();
+    const ids = sh.getRange(3, idCol, lastRow - 2, 1).getDisplayValues();
+    const files = [], images = [], thumbs = [];
+    const base = String(CMS.githubPagesBase || '').replace(/\/$/, '');
+    let sheetChanged = 0;
+    ids.forEach(([raw]) => {
+      const id = String(raw || '').trim().toUpperCase();
+      if (/^XH\d{4}$/.test(id)) {
+        files.push([id + '.webp']);
+        images.push([base + '/images/artworks/2400/' + id + '.webp']);
+        thumbs.push([base + '/images/artworks/1200/' + id + '.webp']);
+        sheetChanged++;
+      } else {
+        files.push(['']); images.push(['']); thumbs.push(['']);
+      }
+    });
+    sh.getRange(3, fileCol, files.length, 1).setValues(files);
+    sh.getRange(3, imageCol, images.length, 1).setValues(images);
+    sh.getRange(3, thumbCol, thumbs.length, 1).setValues(thumbs);
+    changed += sheetChanged;
+    report.push(name + '：' + sheetChanged + ' 筆');
+  });
+  CacheService.getScriptCache().removeAll(['v72a_all_artworks','v72b_admin_meta']);
+  SpreadsheetApp.getUi().alert('GitHub WebP 圖片欄位更新完成\n\n' + report.join('\n') + '\n\n合計：' + changed + ' 筆');
 }

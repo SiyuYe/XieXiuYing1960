@@ -29,7 +29,7 @@
 const list=document.getElementById('sortList'),msg=document.getElementById('sortMessage'),saveBtn=document.getElementById('saveSort');
 let section='homeHero', items=[], dragging=null, dirty=false;
 function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
-function img(a){return a.thumbUrl||a.imageUrl||'../assets/images/art-placeholder-1.svg';}
+let imageManifest={artworks:{}};function normalizeArtworkId(a){return String(a?.artworkId||a?.id||'').trim().toUpperCase();}function img(a){const id=normalizeArtworkId(a);return /^XH\d{4}$/.test(id)?`../images/artworks/1200/${id}.webp`:'../assets/images/art-placeholder-1.svg';}async function loadImageManifest(){try{const r=await fetch('../data/images-manifest.json?v=cms-v7.7.1-github-images',{cache:'force-cache'});if(r.ok)imageManifest=await r.json();}catch(_){}}
 function render(){
   document.getElementById('sortCount').textContent=`共 ${items.length} 件`;
   list.innerHTML=items.length?items.map((a,i)=>`<article class="sort-item" draggable="true" data-id="${esc(a.artworkId)}">
@@ -55,6 +55,6 @@ list.addEventListener('dragover',e=>{e.preventDefault();const over=e.target.clos
 document.querySelectorAll('.sort-tab').forEach(b=>b.onclick=()=>{if(dirty&&!confirm('尚未儲存排序，確定切換嗎？'))return;load(b.dataset.section);});
 saveBtn.onclick=async()=>{saveBtn.disabled=true;msg.textContent='儲存中…';try{const res=await XxyCms.saveDisplayOrder(section,items.map(x=>x.artworkId));dirty=false;msg.textContent=res.message||'已儲存排序';render();}catch(e){msg.innerHTML='<span class="error">儲存失敗：'+esc(e.message)+'</span>';saveBtn.disabled=false;}};
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
-XxyAdminReady.then(()=>load(section));
+XxyAdminReady.then(async()=>{await loadImageManifest();load(section);});
 </script>
 </body></html>
