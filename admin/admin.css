@@ -69,15 +69,15 @@
 .artwork-sheet{table-layout:fixed;min-width:1780px}
 .artwork-sheet col.col-select{width:40px}
 .artwork-sheet col.col-thumb{width:70px}
-.artwork-sheet col.col-artwork-id{width:84px}
-.artwork-sheet col.col-title-zh{width:170px}
-.artwork-sheet col.col-title-en{width:90px}
-.artwork-sheet col.col-year{width:70px}
-.artwork-sheet col.col-size{width:85px}
-.artwork-sheet col.col-artwork-type{width:85px}
-.artwork-sheet col.col-subject{width:85px}
-.artwork-sheet col.col-material{width:85px}
-.artwork-sheet col.col-medium{width:95px}
+.artwork-sheet col.col-artwork-id{width:77px}
+.artwork-sheet col.col-title-zh{width:150px}
+.artwork-sheet col.col-title-en{width:70px}
+.artwork-sheet col.col-year{width:74px}
+.artwork-sheet col.col-size{width:80px}
+.artwork-sheet col.col-artwork-type{width:90px}
+.artwork-sheet col.col-subject{width:90x}
+.artwork-sheet col.col-material{width:90px}
+.artwork-sheet col.col-medium{width:105px}
 
 .artwork-sheet col.col-collection-status{width:100px}
 .artwork-sheet col.col-check{width:67px}
