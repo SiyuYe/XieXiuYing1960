@@ -70,19 +70,19 @@
 .artwork-sheet col.col-select{width:40px}
 .artwork-sheet col.col-thumb{width:70px}
 .artwork-sheet col.col-artwork-id{width:77px}
-.artwork-sheet col.col-title-zh{width:150px}
+.artwork-sheet col.col-title-zh{width:170px}
 .artwork-sheet col.col-title-en{width:70px}
 .artwork-sheet col.col-year{width:74px}
-.artwork-sheet col.col-size{width:80px}
-.artwork-sheet col.col-artwork-type{width:90px}
-.artwork-sheet col.col-subject{width:90x}
-.artwork-sheet col.col-material{width:90px}
-.artwork-sheet col.col-medium{width:105px}
+.artwork-sheet col.col-size{width:90px}
+.artwork-sheet col.col-artwork-type{width:100px}
+.artwork-sheet col.col-subject{width:100px}
+.artwork-sheet col.col-material{width:100px}
+.artwork-sheet col.col-medium{width:120px}
 
-.artwork-sheet col.col-collection-status{width:100px}
-.artwork-sheet col.col-check{width:67px}
-.artwork-sheet col.col-data-status{width:70px}
-.artwork-sheet col.col-action{width:70px}
+.artwork-sheet col.col-collection-status{width:105px}
+.artwork-sheet col.col-check{width:66px}
+.artwork-sheet col.col-data-status{width:72px}
+.artwork-sheet col.col-action{width:68px}
 .artwork-sheet td:nth-child(6) input,
 .artwork-sheet td:nth-child(8) select,
 .artwork-sheet td:nth-child(9) select,
