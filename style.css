@@ -112,3 +112,125 @@ body[data-page="home"] .artist-profile-overlay .btn{padding:9px 12px;font-size:1
 /* CMS v7.7.2 layout */
 @media (min-width:901px){.home-hero{min-height:660px;padding-top:30px;padding-bottom:30px}}
 .subpage{padding-top:0}.page-hero{padding:34px 18px 14px;min-height:0}.page-hero .eyebrow{margin:0;font-size:18px;letter-spacing:.18em}.page-hero .page-brief{margin:10px 0 0;font-size:18px;line-height:1.5;color:var(--muted)}.page-hero+[data-dynamic-sections]:empty{display:none}.page-hero~.content-card{margin-top:22px}@media(max-width:900px){.page-hero{padding:28px 18px 10px}}
+
+/* CMS v7.7.3：首屏緊湊化與內頁英文標題統一 */
+@media (min-width:901px){
+ body[data-page="home"] .home-hero{min-height:520px!important;padding-top:16px!important;padding-bottom:18px!important;gap:34px!important}
+}
+.page-hero{padding:24px 18px 8px!important;margin-bottom:0!important}
+.page-hero .eyebrow{margin:0!important;font-size:18px!important;letter-spacing:.18em}
+.page-hero .page-brief{margin:7px 0 0!important;font-size:17px!important;line-height:1.45!important;color:var(--muted)}
+.page-hero~.content-card{margin-top:14px!important}
+@media(max-width:900px){.page-hero{padding:26px 18px 10px!important}}
+
+
+/* CMS v7.7.4：手機品牌放大、主選單底線導引、乾淨載入畫面 */
+.brand-mark{overflow:hidden;background:rgba(255,255,255,.72);border:1px solid rgba(107,194,186,.22)}
+.brand-mark img{width:100%;height:100%;object-fit:cover;border-radius:inherit}
+.nav-rail{display:none}
+@media(max-width:620px){
+  .topbar{padding:4px 10px 4px;min-height:0}
+  .brand{gap:10px;margin:0 auto 2px;line-height:1}
+  .brand-mark{width:56px;height:56px;border-radius:50%;flex:0 0 56px;box-shadow:0 8px 20px rgba(107,194,186,.22)}
+  .brand strong,body[data-page="home"] .brand strong{font-size:30px;line-height:.98;letter-spacing:.015em}
+  .brand small,body[data-page="home"] .brand small{font-size:18px;line-height:1;margin-top:4px;letter-spacing:.05em}
+  .nav-shell{margin:0 -10px;padding-bottom:0}
+  .main-nav{position:relative;gap:12px;padding:6px 34px 13px;scroll-snap-type:x proximity;overscroll-behavior-inline:contain}
+  .nav-link{position:relative;padding:7px 18px 9px;font-size:30px;line-height:1;scroll-snap-align:center}
+  .nav-link.active:after{content:"";position:absolute;left:14px;right:14px;bottom:-7px;height:5px;border-radius:999px;background:linear-gradient(90deg,var(--main),var(--main-dark));box-shadow:0 -6px 16px rgba(107,194,186,.55);z-index:3}
+  .nav-rail{display:block;position:absolute;left:34px;right:34px;bottom:4px;height:2px;border-radius:999px;background:rgba(84,110,107,.24);pointer-events:none;z-index:1}
+  .nav-progress{display:none!important}
+  .nav-shell:before,.nav-shell:after{top:0;bottom:0;width:34px;opacity:.96}
+  .nav-shell.can-scroll-left:before{background:linear-gradient(90deg,rgba(244,253,251,1) 18%,rgba(244,253,251,.72) 55%,transparent)}
+  .nav-shell.can-scroll-right:after{background:linear-gradient(-90deg,rgba(244,253,251,1) 18%,rgba(244,253,251,.72) 55%,transparent)}
+}
+
+
+/* CMS v7.8：正式藝術館橫幅 Header */
+.museum-header{
+  position:relative;
+  top:auto;
+  z-index:50;
+  padding:0 0 10px;
+  overflow:visible;
+  background:#f5ecdf;
+  border-bottom:1px solid rgba(133,101,64,.18);
+  backdrop-filter:none;
+}
+.museum-banner-frame{
+  width:100%;
+  height:320px;
+  overflow:hidden;
+  background:#f5ecdf;
+}
+.museum-banner-link{
+  display:block;
+  width:100%;
+  height:100%;
+  text-decoration:none;
+}
+.museum-banner-image{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  object-position:center 30%;
+}
+.museum-header .brand{display:none!important}
+.museum-nav-shell{
+  width:min(1180px,calc(100% - 40px));
+  max-width:1180px;
+  margin:-48px auto 0;
+  padding:7px 12px 8px;
+  border:1px solid rgba(255,255,255,.72);
+  border-radius:26px;
+  background:rgba(255,255,255,.80);
+  backdrop-filter:blur(18px) saturate(1.1);
+  box-shadow:0 16px 42px rgba(74,58,40,.17);
+}
+.museum-nav-shell:before,.museum-nav-shell:after{display:none}
+.museum-nav-shell .main-nav{
+  justify-content:center;
+  padding:2px 4px;
+  gap:5px;
+}
+.museum-nav-shell .nav-link{
+  color:#3d4c49;
+  text-shadow:0 1px 0 rgba(255,255,255,.75);
+}
+.museum-nav-shell .nav-link.active{
+  color:#fff;
+  text-shadow:none;
+}
+.museum-nav-shell .nav-rail{display:none!important}
+@media(max-width:900px){
+  .museum-banner-frame{height:260px}
+  .museum-banner-image{object-position:center 28%}
+  .museum-nav-shell{margin-top:-40px;width:calc(100% - 24px)}
+}
+@media(max-width:620px){
+  .museum-header{padding:0 0 8px;background:#f5ecdf}
+  .museum-banner-frame{height:auto;aspect-ratio:2/1;background:#f5ecdf}
+  .museum-banner-image{object-fit:contain;object-position:center;background:#f5ecdf}
+  .museum-nav-shell{
+    width:calc(100% - 16px);
+    margin:-27px 8px 0;
+    padding:6px 0 7px;
+    border-radius:22px;
+    background:rgba(255,255,255,.84);
+  }
+  .museum-nav-shell .main-nav{
+    justify-content:flex-start;
+    padding:4px 26px 12px;
+    gap:10px;
+  }
+  .museum-nav-shell .nav-link{
+    font-size:24px;
+    padding:8px 15px 10px;
+  }
+  .museum-nav-shell .nav-link.active:after{bottom:-5px}
+  .museum-nav-shell:before,.museum-nav-shell:after{display:block;top:0;bottom:0;width:28px;border-radius:22px}
+}
+@media(max-width:390px){
+  .museum-nav-shell .nav-link{font-size:22px;padding-inline:13px}
+}

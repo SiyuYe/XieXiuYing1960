@@ -7,14 +7,19 @@
   <meta name="description" content="謝秀英書畫藝術館首頁，收錄近期公告、線上展、精選作品與粉專消息。" />
   <meta name="theme-color" content="#6bc2ba" />
   <link rel="icon" href="favicon.ico" /><link rel="manifest" href="manifest.json" />
-  <link rel="preconnect" href="https://script.google.com" crossorigin />
-  <link rel="stylesheet" href="style.css" />
+  <link rel="preload" as="image" href="images/yingphoto/1600/xiexiuying001.webp" fetchpriority="high" />
+  <link rel="preload" as="image" href="images/artworks/1200/XH0001.webp" fetchpriority="high" />
+  <link rel="preload" as="image" href="assets/images/header-banner.webp" fetchpriority="high"><link rel="stylesheet" href="style.css" />
 </head>
 <body data-page="home">
-  <header class="topbar" id="top">
-    <a class="brand" href="index.html" aria-label="回到首頁"><span class="brand-mark">秀</span><span><strong>謝秀英</strong><small>Xie Xiu-Ying</small></span></a>
-    <div class="nav-shell"><nav class="main-nav" aria-label="主選單">
-      <a class="nav-link active" href="index.html">🏠 Home</a><a class="nav-link" href="about.html">關於秀英</a><a class="nav-link" href="gallery.html">藝廊</a><a class="nav-link" href="works.html">作品集</a><a class="nav-link" href="exhibitions.html">展覽經歷</a><a class="nav-link" href="history.html">歷史回顧</a><a class="nav-link" href="contact.html">聯絡</a>
+  <header class="topbar museum-header" id="top">
+    <div class="museum-banner-frame">
+      <a class="museum-banner-link" href="index.html" aria-label="回到謝秀英書畫藝術館首頁">
+        <img class="museum-banner-image" src="assets/images/header-banner.webp" alt="謝秀英書畫藝術館橫幅" width="2048" height="1024" fetchpriority="high" decoding="async">
+      </a>
+    </div>
+    <div class="nav-shell museum-nav-shell"><nav class="main-nav" aria-label="主選單">
+      <a class="nav-link" href="index.html">🏠 Home</a><a class="nav-link" href="about.html">關於秀英</a><a class="nav-link" href="gallery.html">藝廊</a><a class="nav-link" href="works.html">作品集</a><a class="nav-link" href="exhibitions.html">展覽經歷</a><a class="nav-link" href="history.html">歷史回顧</a><a class="nav-link" href="contact.html">聯絡</a>
     </nav></div>
   </header>
 
@@ -32,13 +37,18 @@
     <section id="hero" class="home-hero section-snap">
       <div class="hero-bg-orb orb-a"></div><div class="hero-bg-orb orb-b"></div>
       <div class="hero-copy reveal visible">
-        <p class="eyebrow">Xie Xiu-Ying Art Museum</p>
-        <h1>謝秀英<br><span>書畫藝術館</span></h1>
-        <p class="hero-sub">以書畫來美化這個世界，以書畫來安慰人的心靈。</p>
-        <div class="hero-actions"><a class="btn primary" href="gallery.html">進入線上藝廊</a><a class="btn ghost" href="https://www.facebook.com/XieXiuYing1960/" target="_blank" rel="noopener">Facebook 粉專</a></div>
+        <div class="artist-profile-card is-loading">
+          <div class="artist-photo-skeleton" aria-hidden="true"></div>
+          <img id="artistRandomPhoto" alt="謝秀英老師" decoding="async" fetchpriority="high">
+          <div class="artist-profile-overlay">
+            <h1>謝秀英</h1><p class="artist-name-en">Xie Xiu-Ying</p>
+            <p class="hero-sub">以書畫來美化這個世界，以書畫來安慰人的心靈。</p>
+            <div class="hero-actions"><a class="btn primary" href="gallery.html">進入線上藝廊</a><a class="btn ghost" href="https://www.facebook.com/XieXiuYing1960/" target="_blank" rel="noopener">Facebook 粉專</a></div>
+          </div>
+        </div>
       </div>
       <div class="hero-art protected-image reveal visible" data-watermark="謝秀英 Xie Xiu-Ying">
-        <button class="slider-btn prev" aria-label="上一張">‹</button><img id="heroImage" src="assets/images/art-placeholder-1.svg" alt="謝秀英精選作品" draggable="false" /><button class="slider-btn next" aria-label="下一張">›</button>
+        <button class="slider-btn prev" aria-label="上一張">‹</button><img id="heroImage" src="assets/images/art-placeholder-clean.svg" alt="謝秀英精選作品" draggable="false" /><button class="slider-btn next" aria-label="下一張">›</button>
         <div class="slide-caption"><strong id="heroTitle"></strong><small id="heroMeta"></small></div>
       </div>
     </section>

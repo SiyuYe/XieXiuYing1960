@@ -1,10 +1,16 @@
 // 謝秀英藝術館 CMS v7.5
-const DATA_VERSION='cms-v7.7.2-fast-clean';
+const DATA_VERSION='cms-v7.7.3-fast-first-paint';
 const LOCAL_FILES={config:'data/site-config.json',home:'data/home.json',pages:'data/pages.json',artworks:'data/artworks.json',exhibitions:'data/exhibitions.json'};
-let siteConfig=null,homeData=null,pageData=null,artworks=[],exhibitions=[],historyItems=[],books=[],imageManifest={artworks:{},artworkOrder:[],teacherPhotos:{1600:[],600:[]}};
+let siteConfig=null,homeData=null,pageData=null,artworks=[],exhibitions=[],historyItems=[],books=[],imageManifest={artworks:{},artworkOrder:[],teacherPhotos:{1600:['images/yingphoto/1600/xiexiuying001.webp'],600:['images/yingphoto/600/xiexiuying001.webp']}};
 let heroTimer=null,uiEffectsReady=false;
 const fallbackArtworks=[];
-async function fetchJson(path){const r=await fetch(`${path}?v=${DATA_VERSION}`,{cache:'force-cache'});if(!r.ok)throw new Error(path);return r.json();}
+async function fetchJson(path){
+ const key='xxy.static.'+path;
+ const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),2200);
+ try{const r=await fetch(`${path}?v=${DATA_VERSION}`,{cache:'force-cache',signal:controller.signal});if(!r.ok)throw new Error(path);const data=await r.json();try{localStorage.setItem(key,JSON.stringify(data));}catch(_){}return data;}
+ catch(err){try{const cached=localStorage.getItem(key);if(cached)return JSON.parse(cached);}catch(_){}throw err;}
+ finally{clearTimeout(timer);}
+}
 const truth=v=>v===true||String(v||'').toUpperCase()==='TRUE'||String(v||'')==='是';
 function esc(s=''){return String(s).replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[m]));}
 function directImageUrl(url=''){const v=String(url||'').trim();if(!v)return '';const m=v.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:export=view&)?id=)([-\w]+)/i)||v.match(/[?&]id=([-\w]+)/i);return m?`https://drive.google.com/thumbnail?id=${m[1]}&sz=w1600`:v;}
@@ -19,14 +25,11 @@ function normalizeBundle(bundle,localConfig){
 }
 async function loadBackendBundle(config){
  if(!window.XxyCms)return null;
- const key='xxy.siteBundle.v77renamed2';
- try{
-  const cached=JSON.parse(sessionStorage.getItem(key)||'null');
-  if(cached&&Date.now()-cached.time<5*60*1000)return normalizeBundle(cached.data,config);
- }catch(_){ }
+ const key='xxy.siteBundle.v773';
+ try{const cached=JSON.parse(localStorage.getItem(key)||'null');if(cached&&Date.now()-cached.time<24*60*60*1000)return normalizeBundle(cached.data,config);}catch(_){}
  const api=await XxyCms.resolveApiUrl();if(!api)return null;
  const data=await XxyCms.siteBundle();
- try{sessionStorage.setItem(key,JSON.stringify({time:Date.now(),data}));}catch(_){ }
+ try{localStorage.setItem(key,JSON.stringify({time:Date.now(),data}));}catch(_){}
  return normalizeBundle(data,config);
 }
 async function initData(){
@@ -36,8 +39,16 @@ async function initData(){
   fetchJson(LOCAL_FILES.artworks).catch(()=>[]),fetchJson(LOCAL_FILES.exhibitions).catch(()=>[])
  ]);
  siteConfig=local[0];if(local[1])imageManifest=local[1];homeData=local[2];pageData=local[3];artworks=local[4]||[];exhibitions=local[5]||[];
- normalizeArtworkList_();renderSite_();
- loadBackendBundle(siteConfig).then(b=>{if(!b)return;siteConfig=b.config||siteConfig;homeData=b.home||homeData;pageData=b.pages||pageData;artworks=b.artworks||artworks;exhibitions=b.exhibitions||exhibitions;historyItems=b.history||historyItems;books=b.books||books;normalizeArtworkList_();renderSite_();}).catch(()=>{});
+ seedArtworkImagesFromManifest_();normalizeArtworkList_();renderSite_();
+ const refresh=()=>loadBackendBundle(siteConfig).then(b=>{if(!b)return;siteConfig=b.config||siteConfig;homeData=b.home||homeData;pageData=b.pages||pageData;artworks=b.artworks||artworks;exhibitions=b.exhibitions||exhibitions;historyItems=b.history||historyItems;books=b.books||books;normalizeArtworkList_();renderSite_();}).catch(()=>{});
+ const schedule=()=>setTimeout(refresh,3500);
+ if(document.readyState==='complete')schedule();else addEventListener('load',schedule,{once:true});
+}
+function seedArtworkImagesFromManifest_(){
+ const valid=(Array.isArray(artworks)?artworks:[]).filter(a=>/^XH\d{4}$/.test(normalizeArtworkId(a)));
+ if(valid.length){artworks=valid;return;}
+ const ids=(imageManifest.artworkOrder||[]).map(v=>String(v||'').toUpperCase()).filter(v=>/^XH\d{4}$/.test(v));
+ artworks=ids.map((id,index)=>({id,artworkId:id,titleZh:'',titleEn:'',year:'',size:'',featured:index<8,hero:index<3,gallery:true,public:true,isPublic:true,__staticOrder:index}));
 }
 function normalizeArtworkList_(){artworks=(Array.isArray(artworks)?artworks:[]).map((a,index)=>({...a,__staticOrder:Number.isInteger(a.__staticOrder)?a.__staticOrder:index})).filter(a=>a.public!==false&&a.isPublic!==false);}
 function renderSite_(){renderCommonShell();renderHome();renderSubpage();requestAnimationFrame(()=>{initArtSections();renderExhibitions();renderHistory();document.querySelectorAll('.page-loading').forEach(el=>el.remove());initContactForm();if(!uiEffectsReady){initUiEffects();uiEffectsReady=true;}});}
@@ -46,7 +57,7 @@ function valueList(a){return [a.artworkTypeName||a.categoryZh,a.subjectNames,a.m
 function titleLines(a){return [a.titleZh,a.titleEn].filter(v=>String(v||'').trim());}
 function infoLines(a){return [[a.year,a.size].filter(v=>String(v||'').trim()).join('｜'),valueList(a).join('｜')].filter(Boolean);}
 function artTitle(a){return a.titleZh||a.titleEn||'';}
-function imgSrc(a){return staticArtworkUrl(a,'1200')||'assets/images/art-placeholder-1.svg';}
+function imgSrc(a){return staticArtworkUrl(a,'1200')||'assets/images/art-placeholder-clean.svg';}
 function imgLargeSrc(a){return staticArtworkUrl(a,'2400')||imgSrc(a);}
 function artInfoHtml(a){const titles=titleLines(a),infos=infoLines(a);return `<div class="art-info">${titles.map((v,i)=>`<${i?'span':'strong'}>${esc(v)}</${i?'span':'strong'}>`).join('')}${infos.map(v=>`<small>${esc(v)}</small>`).join('')}</div>`;}
 function card(a){return `<button class="art-card protected-image" type="button" data-watermark="謝秀英" data-art-id="${esc(a.id||a.artworkId||'')}"><img src="${esc(imgSrc(a))}" alt="${esc(artTitle(a)||'謝秀英作品')}" draggable="false" loading="lazy" decoding="async" width="1200" height="1200">${artInfoHtml(a)}</button>`;}
@@ -101,10 +112,16 @@ function renderFacebook(){
 function renderSubpage(){
  const page=document.body.dataset.page;if(page==='home')return;
  const d=(pageData&&pageData[page])||{};
- const labels={about:['ABOUT ARTIST','關於秀英'],gallery:['ONLINE GALLERY','藝廊'],works:['COLLECTIONS','作品集'],exhibitions:['EXHIBITIONS','展覽經歷'],history:['ARCHIVE','歷史回顧'],contact:['CONTACT','聯絡']};
- const pair=labels[page]||[d.eyebrow||'',d.title||''];
- const subtitle=page==='about'?'謝秀英 字：馥宇，號：無心居士。':'';
- const hero=document.querySelector('.page-hero');if(hero)hero.innerHTML=`<p class="eyebrow">${esc(pair[0])}</p>${subtitle?`<p class="page-brief">${esc(subtitle)}</p>`:''}`;
+ const labels={
+  about:['ABOUT ARTIST','謝秀英 字：馥宇，號：無心居士。'],
+  gallery:['ONLINE GALLERY','探索老師精選作品'],
+  works:['COLLECTIONS','歷年作品完整收藏'],
+  exhibitions:['EXHIBITIONS','個展與聯展紀錄'],
+  history:['ARCHIVE','歷史典藏與出版'],
+  contact:['CONTACT','歡迎收藏、合作與教學邀約']
+ };
+ const pair=labels[page]||[d.eyebrow||'',d.subtitle||''];
+ const hero=document.querySelector('.page-hero');if(hero)hero.innerHTML=`<p class="eyebrow">${esc(pair[0])}</p><p class="page-brief">${esc(pair[1])}</p>`;
  const c=document.querySelector('[data-dynamic-sections]');if(c&&Array.isArray(d.sections))c.innerHTML=d.sections.map(s=>`<section class="content-card"><h2>${esc(s.title||'')}</h2><p class="multiline">${nl(s.body||'')}</p></section>`).join('');
 }
 function initArtSections(){
@@ -132,13 +149,15 @@ function initContactForm(){
 }
 function initNavProgress(){
  const nav=document.querySelector('.main-nav'),shell=document.querySelector('.nav-shell');if(!nav||!shell)return;
- let bar=shell.querySelector('.nav-progress');if(!bar){bar=document.createElement('div');bar.className='nav-progress';bar.setAttribute('aria-label','主選單位置');shell.appendChild(bar);}
- const links=[...nav.querySelectorAll('.nav-link')];bar.innerHTML=links.map((_,i)=>`<button type="button" aria-label="前往第 ${i+1} 個選單" data-nav-dot="${i}"><i></i></button>`).join('');
- const dots=[...bar.querySelectorAll('button')];
- const update=()=>{const center=nav.scrollLeft+nav.clientWidth/2;let best=0,dist=Infinity;links.forEach((link,i)=>{const d=Math.abs((link.offsetLeft+link.offsetWidth/2)-center);if(d<dist){dist=d;best=i;}});dots.forEach((d,i)=>d.classList.toggle('active',i===best));const max=Math.max(1,nav.scrollWidth-nav.clientWidth);bar.style.setProperty('--nav-progress',String(Math.max(0,Math.min(1,nav.scrollLeft/max))));};
- dots.forEach((d,i)=>d.addEventListener('click',()=>links[i]?.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'})));
- nav.addEventListener('scroll',update,{passive:true});addEventListener('resize',update,{passive:true});
- const active=links.findIndex(x=>x.classList.contains('active'));if(active>=0)setTimeout(()=>{links[active].scrollIntoView({inline:'center',block:'nearest'});update();},80);else update();
+ shell.querySelector('.nav-progress')?.remove();
+ let rail=shell.querySelector('.nav-rail');if(!rail){rail=document.createElement('span');rail.className='nav-rail';rail.setAttribute('aria-hidden','true');shell.appendChild(rail);}
+ const links=[...nav.querySelectorAll('.nav-link')];
+ const centerActive=(behavior='auto')=>{const active=links.find(x=>x.classList.contains('active'));if(!active)return;const left=active.offsetLeft-(nav.clientWidth-active.offsetWidth)/2;nav.scrollTo({left:Math.max(0,left),behavior});};
+ const updateEdges=()=>{const max=Math.max(0,nav.scrollWidth-nav.clientWidth);shell.classList.toggle('can-scroll-left',nav.scrollLeft>8);shell.classList.toggle('can-scroll-right',nav.scrollLeft<max-8);};
+ nav.addEventListener('scroll',updateEdges,{passive:true});
+ addEventListener('resize',()=>{centerActive('auto');updateEdges();},{passive:true});
+ addEventListener('pageshow',()=>setTimeout(()=>{centerActive('auto');updateEdges();},30),{once:true});
+ requestAnimationFrame(()=>{centerActive('auto');updateEdges();});
 }
 function initUiEffects(){const io=new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting&&e.target.classList.add('visible')),{threshold:.1});document.querySelectorAll('.reveal').forEach(e=>io.observe(e));const top=document.querySelector('.to-top');if(top){addEventListener('scroll',()=>top.classList.toggle('show',scrollY>500));top.onclick=()=>scrollTo({top:0,behavior:'smooth'});}initNavProgress();}
 document.addEventListener('contextmenu',e=>e.preventDefault());document.addEventListener('dragstart',e=>e.preventDefault());initData();if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(()=>{}));
