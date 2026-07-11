@@ -1,7 +1,8 @@
 // 謝秀英藝術館 CMS v7.5
-const DATA_VERSION='cms-v7.7.1-github-images';
+const DATA_VERSION='cms-v7.7.2-fast-clean';
 const LOCAL_FILES={config:'data/site-config.json',home:'data/home.json',pages:'data/pages.json',artworks:'data/artworks.json',exhibitions:'data/exhibitions.json'};
 let siteConfig=null,homeData=null,pageData=null,artworks=[],exhibitions=[],historyItems=[],books=[],imageManifest={artworks:{},artworkOrder:[],teacherPhotos:{1600:[],600:[]}};
+let heroTimer=null,uiEffectsReady=false;
 const fallbackArtworks=[];
 async function fetchJson(path){const r=await fetch(`${path}?v=${DATA_VERSION}`,{cache:'force-cache'});if(!r.ok)throw new Error(path);return r.json();}
 const truth=v=>v===true||String(v||'').toUpperCase()==='TRUE'||String(v||'')==='是';
@@ -29,12 +30,17 @@ async function loadBackendBundle(config){
  return normalizeBundle(data,config);
 }
 async function initData(){
- const boot=await Promise.all([fetchJson(LOCAL_FILES.config).catch(()=>null),fetchJson('data/images-manifest.json').catch(()=>null)]);siteConfig=boot[0];if(boot[1])imageManifest=boot[1]; const b=await loadBackendBundle(siteConfig).catch(()=>null);
- if(b){siteConfig=b.config||siteConfig;homeData=b.home;pageData=b.pages;artworks=b.artworks;exhibitions=b.exhibitions;historyItems=b.history;books=b.books;}
- else{homeData=await fetchJson(LOCAL_FILES.home).catch(()=>null);pageData=await fetchJson(LOCAL_FILES.pages).catch(()=>null);artworks=await fetchJson(LOCAL_FILES.artworks).catch(()=>[]);exhibitions=await fetchJson(LOCAL_FILES.exhibitions).catch(()=>[]);}
- artworks=(Array.isArray(artworks)?artworks:[]).map((a,index)=>({...a,__staticOrder:Number.isInteger(a.__staticOrder)?a.__staticOrder:index})).filter(a=>a.public!==false&&a.isPublic!==false);
- renderCommonShell();renderHome();renderSubpage();requestAnimationFrame(()=>{initArtSections();renderExhibitions();renderHistory();document.querySelectorAll('.page-loading').forEach(el=>el.remove());initContactForm();initUiEffects();});
+ const local=await Promise.all([
+  fetchJson(LOCAL_FILES.config).catch(()=>null),fetchJson('data/images-manifest.json').catch(()=>null),
+  fetchJson(LOCAL_FILES.home).catch(()=>null),fetchJson(LOCAL_FILES.pages).catch(()=>null),
+  fetchJson(LOCAL_FILES.artworks).catch(()=>[]),fetchJson(LOCAL_FILES.exhibitions).catch(()=>[])
+ ]);
+ siteConfig=local[0];if(local[1])imageManifest=local[1];homeData=local[2];pageData=local[3];artworks=local[4]||[];exhibitions=local[5]||[];
+ normalizeArtworkList_();renderSite_();
+ loadBackendBundle(siteConfig).then(b=>{if(!b)return;siteConfig=b.config||siteConfig;homeData=b.home||homeData;pageData=b.pages||pageData;artworks=b.artworks||artworks;exhibitions=b.exhibitions||exhibitions;historyItems=b.history||historyItems;books=b.books||books;normalizeArtworkList_();renderSite_();}).catch(()=>{});
 }
+function normalizeArtworkList_(){artworks=(Array.isArray(artworks)?artworks:[]).map((a,index)=>({...a,__staticOrder:Number.isInteger(a.__staticOrder)?a.__staticOrder:index})).filter(a=>a.public!==false&&a.isPublic!==false);}
+function renderSite_(){renderCommonShell();renderHome();renderSubpage();requestAnimationFrame(()=>{initArtSections();renderExhibitions();renderHistory();document.querySelectorAll('.page-loading').forEach(el=>el.remove());initContactForm();if(!uiEffectsReady){initUiEffects();uiEffectsReady=true;}});}
 function shuffle(list){const a=[...list];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 function valueList(a){return [a.artworkTypeName||a.categoryZh,a.subjectNames,a.material,a.medium].filter(v=>String(v||'').trim());}
 function titleLines(a){return [a.titleZh,a.titleEn].filter(v=>String(v||'').trim());}
@@ -60,7 +66,7 @@ function renderHome(){
  const fbInfo=document.querySelector('.fb-info');if(fbInfo)fbInfo.innerHTML=`<p class="eyebrow">Facebook</p><h2>粉專最新消息</h2><p>追蹤謝秀英老師近期創作、展覽活動、課程分享與藝術生活紀錄。</p><p>更多完整作品與最新消息，歡迎前往 Facebook 粉絲專頁。</p><a class="btn primary" href="${esc(siteConfig?.facebookUrl||'https://www.facebook.com/XieXiuYing1960/')}" target="_blank" rel="noopener">前往粉專</a>`;
  const show=homeData.onlineShow||{},st=document.querySelector('.show-text');if(st)st.innerHTML=`<p class="eyebrow">${esc(show.eyebrow||'Online Exhibition')}</p><h2>${esc(show.title||'')}</h2><p>${esc(show.period||'')}</p><p class="multiline">${nl(show.text||'')}</p><a class="btn light" href="${esc(show.button?.href||'gallery.html')}">${esc(show.button?.label||'立即參觀')}</a>`;
  renderRandomQuote();
- deferUntilVisible('#fb',renderFacebook,'240px');
+ deferUntilVisible('#fb',()=>{const run=()=>renderFacebook();if('requestIdleCallback'in window)requestIdleCallback(run,{timeout:2500});else setTimeout(run,900);},'120px');
 }
 async function loadRandomArtistPhoto(){
  const img=document.querySelector('#artistRandomPhoto'),card=document.querySelector('.artist-profile-card');if(!img)return;
@@ -98,12 +104,12 @@ function renderSubpage(){
  const labels={about:['ABOUT ARTIST','關於秀英'],gallery:['ONLINE GALLERY','藝廊'],works:['COLLECTIONS','作品集'],exhibitions:['EXHIBITIONS','展覽經歷'],history:['ARCHIVE','歷史回顧'],contact:['CONTACT','聯絡']};
  const pair=labels[page]||[d.eyebrow||'',d.title||''];
  const subtitle=page==='about'?'謝秀英 字：馥宇，號：無心居士。':'';
- const hero=document.querySelector('.page-hero');if(hero)hero.innerHTML=`<p class="eyebrow">${esc(pair[0])}</p><h1>${esc(pair[1])}</h1>${subtitle?`<p class="page-brief">${esc(subtitle)}</p>`:''}`;
+ const hero=document.querySelector('.page-hero');if(hero)hero.innerHTML=`<p class="eyebrow">${esc(pair[0])}</p>${subtitle?`<p class="page-brief">${esc(subtitle)}</p>`:''}`;
  const c=document.querySelector('[data-dynamic-sections]');if(c&&Array.isArray(d.sections))c.innerHTML=d.sections.map(s=>`<section class="content-card"><h2>${esc(s.title||'')}</h2><p class="multiline">${nl(s.body||'')}</p></section>`).join('');
 }
 function initArtSections(){
  const pool=shuffle(artworks.filter(a=>a.featured!==false)),heroes=pool.filter(a=>a.hero===true),heroPool=(heroes.length?heroes:pool).slice(0,3),ids=new Set(heroPool.map(a=>a.id));let feat=pool.filter(a=>!ids.has(a.id));
- const image=document.querySelector('#heroImage');if(image){let slide=0;const t=document.querySelector('#heroTitle'),m=document.querySelector('#heroMeta');function draw(){const a=heroPool[slide];if(!a){image.removeAttribute('src');t.textContent='';m.textContent='';return;}image.src=imgSrc(a);t.textContent=titleLines(a).join('　');m.innerHTML=infoLines(a).map(esc).join('<br>');}document.querySelector('.next')?.addEventListener('click',()=>{slide=(slide+1)%heroPool.length;draw()});document.querySelector('.prev')?.addEventListener('click',()=>{slide=(slide-1+heroPool.length)%heroPool.length;draw()});draw();if(heroPool.length>1)setInterval(()=>{slide=(slide+1)%heroPool.length;draw()},5000);}
+ const image=document.querySelector('#heroImage');if(image){if(heroTimer){clearInterval(heroTimer);heroTimer=null;}let slide=0;const t=document.querySelector('#heroTitle'),m=document.querySelector('#heroMeta');function draw(){const a=heroPool[slide];if(!a){image.removeAttribute('src');t.textContent='';m.textContent='';return;}image.src=imgSrc(a);t.textContent=titleLines(a).join('　');m.innerHTML=infoLines(a).map(esc).join('<br>');}document.querySelector('.next')?.addEventListener('click',()=>{slide=(slide+1)%heroPool.length;draw()});document.querySelector('.prev')?.addEventListener('click',()=>{slide=(slide-1+heroPool.length)%heroPool.length;draw()});draw();if(heroPool.length>1)heroTimer=setInterval(()=>{slide=(slide+1)%heroPool.length;draw()},5000);}
  const featured=document.querySelector('#featuredWorks');if(featured)featured.innerHTML=feat.slice(0,8).map(card).join('');
  const gallery=document.querySelector('#galleryGrid');if(gallery)gallery.innerHTML=shuffle(artworks.filter(a=>a.gallery===true||truth(a.isGallery))).map(card).join('');
  const works=document.querySelector('#worksGrid');if(works){const drawWorks=list=>{works.innerHTML=list.map(card).join('');bindArtworkCards();};drawWorks(artworks);document.querySelectorAll('.category-pills button').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.category-pills button').forEach(x=>x.classList.remove('active'));btn.classList.add('active');const key=btn.dataset.category||btn.textContent.trim();drawWorks(key==='全部'?artworks:artworks.filter(a=>[a.subjectNames,a.artworkTypeName,a.categoryZh].some(v=>String(v||'').includes(key))));}));}
@@ -117,7 +123,7 @@ function openHistory(r){let m=document.querySelector('#historyModal');if(!m){m=d
 function initContactForm(){
  const reason=document.querySelector('select[name="reason"]');
  if(reason&&siteConfig?.contactReasons)reason.innerHTML='<option value="">請選擇</option>'+siteConfig.contactReasons.map(r=>`<option value="${esc(r)}">${esc(r)}</option>`).join('');
- const form=document.querySelector('#contactForm'),msg=document.querySelector('#formMessage');if(!form)return;
+ const form=document.querySelector('#contactForm'),msg=document.querySelector('#formMessage');if(!form||form.dataset.bound)return;form.dataset.bound='1';
  form.addEventListener('submit',async e=>{e.preventDefault();const btn=form.querySelector('button[type="submit"]');btn.disabled=true;msg.textContent='送出中…';
   try{const fd=new FormData(form),data=Object.fromEntries(fd.entries());data.sourcePage='contact.html';data.userAgent=navigator.userAgent;data.lineId=data.contactPlatform==='LINE'?data.contactId:'';const res=await XxyCms.post('contact',data);msg.textContent=res.message||'已收到您的聯絡需求。';form.reset();}
   catch(err){msg.textContent='送出失敗：'+err.message;}
