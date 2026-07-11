@@ -4,7 +4,7 @@
   const ROOT_CONFIG_PATH = 'data/site-config.json';
   const LOCAL_API_KEY = 'xxy.cms.apiUrl';
   const LOCAL_TOKEN_KEY = 'xxy.cms.adminToken';
-  const CACHE_PREFIX = 'xxy.cms.v73b.';
+  const CACHE_PREFIX = 'xxy.cms.v751.';
   const MEMORY = new Map();
 
   function qs(name){ return new URLSearchParams(location.search).get(name); }
@@ -16,7 +16,7 @@
 
   async function loadLocalConfig(){
     const path = location.pathname.includes('/admin/') ? CONFIG_PATH : ROOT_CONFIG_PATH;
-    try { const r = await fetch(path + '?v=7.3-C', {cache:'no-store'}); return await r.json(); }
+    try { const r = await fetch(path + '?v=7.5.1', {cache:'no-store'}); return await r.json(); }
     catch(e){ return {}; }
   }
   async function resolveApiUrl(){
@@ -82,7 +82,7 @@
     clearCache();
     return res;
   }
-  async function siteBundle(){ return get('siteBundle',{}, {cacheMs:5*60*1000}); }
+  async function siteBundle(){ return get('siteBundle',{}, {cacheMs:0}); }
   async function artworksPage(params, options){
     return get('artworksPage', params||{}, Object.assign({cacheMs:2*60*1000},options||{}));
   }

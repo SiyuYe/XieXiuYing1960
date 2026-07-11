@@ -26,3 +26,38 @@
 .category-pills button{cursor:pointer}.category-pills button.active{background:linear-gradient(135deg,var(--main),var(--main-dark));color:#fff;box-shadow:0 9px 20px rgba(107,194,186,.28)}
 .history-card img{object-fit:contain;background:#f5f8f7}
 @media(max-width:760px){.timeline .exhibition-row{grid-template-columns:62px 1fr;gap:5px 12px}.timeline .exhibition-row span{grid-column:2}.artist-photo-wrap{width:120px;height:120px;border-radius:30px}}
+
+/* CMS v7.5.1 home artist portrait */
+.hero-copy{min-width:0}
+.artist-profile-card{position:relative;width:min(100%,430px);aspect-ratio:3/4;border-radius:38px;overflow:hidden;background:rgba(255,255,255,.55);box-shadow:0 28px 70px rgba(42,77,74,.22)}
+.artist-profile-card>img{width:100%;height:100%;object-fit:cover;object-position:center top}
+.artist-profile-card:has(img[hidden]){background:linear-gradient(145deg,rgba(107,194,186,.24),rgba(255,255,255,.76))}
+.artist-profile-overlay{position:absolute;left:18px;right:18px;bottom:18px;padding:22px 24px;border:1px solid rgba(255,255,255,.72);border-radius:28px;background:rgba(255,255,255,.85);backdrop-filter:blur(12px);box-shadow:0 16px 36px rgba(28,57,54,.13)}
+.artist-profile-overlay .eyebrow{margin:0 0 8px;font-size:13px}
+.artist-profile-overlay h1{font-size:clamp(30px,4vw,48px);line-height:1.08;margin:0 0 8px}
+.artist-profile-overlay .hero-sub{font-size:16px;line-height:1.6;margin:8px 0 12px}
+.artist-profile-overlay .hero-actions{display:flex;flex-wrap:wrap}
+.contact-form button[disabled]{opacity:.6;cursor:wait}.form-message{min-height:1.5em;font-weight:700;color:var(--main-deep)}
+@media(max-width:760px){.home-hero{grid-template-columns:1fr;padding-top:34px}.artist-profile-card{width:min(100%,390px);margin:auto}.artist-profile-overlay{left:12px;right:12px;bottom:12px;padding:18px}.artist-profile-overlay h1{font-size:34px}}
+
+/* CMS v7.5.2：手機版 Facebook 自適應與主選單位置導覽 */
+.fb-post-carousel{width:100%;max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch}
+.fb-slide{flex:0 0 min(var(--fb-width,500px),100%);width:min(var(--fb-width,500px),100%);max-width:100%;min-width:0;display:flex;justify-content:center;background:#fff}
+.fb-slide iframe{display:block;width:min(var(--fb-width,500px),100%)!important;max-width:100%!important;border:0;overflow:hidden}
+.nav-progress{display:none}
+@media(max-width:620px){
+  .fb-card-large{min-height:auto}
+  .fb-post-carousel{scroll-padding-inline:0;border-radius:22px}
+  .fb-slide{min-height:680px;border-radius:22px}
+  .fb-slide iframe{height:680px!important}
+  .nav-shell{padding-bottom:17px}
+  .main-nav{scroll-snap-type:x proximity;overscroll-behavior-inline:contain}
+  .nav-link{scroll-snap-align:center}
+  .nav-progress{position:absolute;left:50%;bottom:2px;transform:translateX(-50%);display:flex;align-items:center;gap:7px;height:10px;padding:0 10px;z-index:4}
+  .nav-progress:before{content:"";position:absolute;left:10px;right:10px;top:50%;height:2px;transform:translateY(-50%);border-radius:999px;background:rgba(107,194,186,.18)}
+  .nav-progress:after{content:"";position:absolute;left:10px;top:50%;height:2px;width:calc((100% - 20px) * var(--nav-progress,0));transform:translateY(-50%);border-radius:999px;background:linear-gradient(90deg,var(--main),var(--main-dark));transition:width .18s ease}
+  .nav-progress button{position:relative;z-index:1;width:8px;height:8px;padding:0;border:0;border-radius:50%;background:#fff;box-shadow:0 0 0 2px rgba(107,194,186,.25);transition:.2s ease}
+  .nav-progress button i{display:block;width:4px;height:4px;margin:auto;border-radius:50%;background:#8faeab}
+  .nav-progress button.active{width:18px;border-radius:999px;background:linear-gradient(90deg,var(--main),var(--main-dark));box-shadow:0 4px 12px rgba(107,194,186,.35)}
+  .nav-progress button.active i{display:none}
+}

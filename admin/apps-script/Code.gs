@@ -255,10 +255,10 @@ function getPages_() {
 
 function saveContactResponse_(data) {
   const sh = getOrCreateSheet_(SpreadsheetApp.getActive(), CMS.sheets.contactResponses, [
-    'createdAt', 'status', 'loginProvider', 'loginUserId', 'name', 'phone', 'email', 'lineId', 'reason', 'subject', 'message', 'preferredContactTime', 'artworkId', 'sourcePage', 'userAgent'
+    'createdAt', 'status', 'loginProvider', 'loginUserId', 'name', 'phone', 'email', 'contactPlatform', 'contactId', 'lineId', 'reason', 'subject', 'message', 'preferredContactTime', 'artworkId', 'sourcePage', 'userAgent'
   ]);
   sh.appendRow([
-    new Date(), '未處理', data.loginProvider || '', data.loginUserId || '', data.name || '', data.phone || '', data.email || '', data.lineId || '', data.reason || '', data.subject || '', data.message || '', data.preferredContactTime || '', data.artworkId || '', data.sourcePage || '', data.userAgent || ''
+    new Date(), '未處理', data.loginProvider || '', data.loginUserId || '', data.name || '', data.phone || '', data.email || '', data.contactPlatform || '', data.contactId || '', data.lineId || '', data.reason || '', data.subject || '', data.message || '', data.preferredContactTime || '', data.artworkId || '', data.sourcePage || '', data.userAgent || ''
   ]);
   return { ok: true, message: '已收到表單資料' };
 }
@@ -430,7 +430,7 @@ function createContactSettingsSheet_(ss) {
 }
 
 function createContactResponsesSheet_(ss) {
-  upsertTableKeepData_(ss, CMS.sheets.contactResponses, ['createdAt', 'status', 'loginProvider', 'loginUserId', 'name', 'phone', 'email', 'lineId', 'reason', 'subject', 'message', 'preferredContactTime', 'artworkId', 'sourcePage', 'userAgent'], []);
+  upsertTableKeepData_(ss, CMS.sheets.contactResponses, ['createdAt', 'status', 'loginProvider', 'loginUserId', 'name', 'phone', 'email', 'contactPlatform', 'contactId', 'lineId', 'reason', 'subject', 'message', 'preferredContactTime', 'artworkId', 'sourcePage', 'userAgent'], []);
 }
 
 function createPagesSheet_(ss) {
