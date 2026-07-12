@@ -1,0 +1,69 @@
+name: Sync Site Data
+
+on:
+  schedule:
+    # GitHub Actions 使用 UTC；19:00 UTC = 台灣隔日凌晨 03:00。
+    - cron: "0 19 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-site-data
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Download and publish site-data.json
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download Apps Script siteData
+        env:
+          SITE_DATA_URL: ${{ secrets.APPS_SCRIPT_SITE_DATA_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SITE_DATA_URL:-}" ]; then
+            echo "::error::尚未設定 Repository Secret：APPS_SCRIPT_SITE_DATA_URL"
+            exit 1
+          fi
+          curl --fail --location --silent --show-error \
+            --retry 3 --retry-delay 3 --retry-all-errors \
+            --connect-timeout 20 --max-time 120 \
+            --header "Cache-Control: no-cache" \
+            "${SITE_DATA_URL}" \
+            --output /tmp/site-data.download.json
+
+      - name: Validate and update static JSON
+        id: site_data
+        run: |
+          python3 scripts/update_site_data.py \
+            /tmp/site-data.download.json \
+            data/site-data.json
+
+      - name: Show validation summary
+        run: |
+          echo "狀態：${{ steps.site_data.outputs.status }}"
+          echo "公開作品：${{ steps.site_data.outputs.artwork_count }}"
+          echo "資料產生時間：${{ steps.site_data.outputs.generated_at }}"
+
+      - name: Commit changed site data
+        if: steps.site_data.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/site-data.json
+          git commit -m "chore: sync website data"
+          git push
+
+      - name: No data changes
+        if: steps.site_data.outputs.changed != 'true'
+        run: echo "試算表公開資料沒有實質變更，本次不建立 Commit。"

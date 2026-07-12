@@ -320,3 +320,27 @@ body[data-page="home"] .home-hero{
 @media(max-width:900px){
   body[data-page="home"] .home-hero{padding-bottom:0!important}
 }
+
+/* CMS v7.9.0 STEP 4：全域錯誤提示 */
+.site-error-notice{position:fixed;left:50%;bottom:18px;z-index:9999;transform:translateX(-50%);max-width:min(92vw,720px);padding:12px 18px;border:1px solid rgba(108,80,68,.2);border-radius:14px;background:rgba(255,251,247,.96);box-shadow:0 12px 36px rgba(47,54,53,.18);color:#493f3b;font-weight:700;text-align:center;backdrop-filter:blur(8px)}
+.site-error-notice[hidden]{display:none}
+.data-load-error{padding:18px;border-radius:14px;background:rgba(255,251,247,.82);color:#6b5148}
+.art-card.is-photo-error img,.hero-art.is-photo-error img,.artist-profile-card.is-photo-error img{object-fit:contain;background:#f5f2eb}
+
+/* V7.9.0 STEP 8：作品分批載入 */
+.art-paging-controls{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  margin:28px 0 4px;
+  min-height:42px;
+}
+.art-load-more{
+  min-width:220px;
+  cursor:pointer;
+}
+.art-load-more[hidden],.art-load-sentinel[hidden]{display:none!important;}
+.art-load-sentinel{display:block;width:1px;height:1px;overflow:hidden;}
+.art-empty{grid-column:1/-1;text-align:center;}

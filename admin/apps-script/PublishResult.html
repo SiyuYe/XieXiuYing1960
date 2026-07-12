@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <base target="_blank">
+  <meta charset="utf-8">
+  <style>
+    :root{--accent:#6bc2ba;--ink:#4f453e;--muted:#7d746d;--paper:#fffdf9;--line:#e8e0d8;}
+    *{box-sizing:border-box}
+    body{margin:0;padding:24px;background:#f8f5ee;color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif}
+    .card{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:24px;box-shadow:0 10px 28px rgba(70,55,45,.08)}
+    .icon{font-size:34px;line-height:1;margin-bottom:12px}
+    h1{font-size:21px;margin:0 0 12px}
+    .lead{font-size:15px;line-height:1.7;margin:0 0 18px}
+    .details{border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:12px 0;margin:0 0 18px;font-size:13px;line-height:1.8}
+    .details b{display:inline-block;min-width:92px}
+    .error{white-space:pre-wrap;background:#fff5f3;border:1px solid #efd4ce;border-radius:12px;padding:14px;color:#8a4037;line-height:1.6;font-size:13px;margin-bottom:18px}
+    .buttons{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    a{display:flex;align-items:center;justify-content:center;text-decoration:none;border-radius:999px;padding:11px 12px;font-weight:700;font-size:14px}
+    .primary{background:var(--accent);color:#fff}
+    .secondary{background:#fff;color:var(--ink);border:1px solid var(--line)}
+    .close{display:block;width:100%;margin-top:10px;border:0;background:transparent;color:var(--muted);padding:8px;cursor:pointer}
+    .note{margin:14px 0 0;text-align:center;color:var(--muted);font-size:12px;line-height:1.5}
+    @media(max-width:440px){.buttons{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="card" id="card"></div>
+<script>
+  var result = <?!= resultJson ?>;
+  var card = document.getElementById('card');
+  function esc(value){
+    return String(value == null ? '' : value)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+  if(result && result.ok){
+    card.innerHTML =
+      '<div class="icon">✅</div>'+
+      '<h1>已送出網站發布工作</h1>'+
+      '<p class="lead">GitHub 已接受這個 Workflow，並開始同步最新網站資料。<br>約 30 秒～2 分鐘後完成。</p>'+
+      '<div class="details">'+
+        '<div><b>Workflow：</b>'+esc(result.workflowName)+'</div>'+
+        '<div><b>Branch：</b>'+esc(result.branch)+'</div>'+
+        '<div><b>Repository：</b>'+esc(result.repository)+'</div>'+
+      '</div>'+
+      '<div class="buttons">'+
+        '<a class="primary" href="'+esc(result.actionsUrl)+'">📄 查看發布進度</a>'+
+        '<a class="secondary" href="'+esc(result.websiteUrl)+'">🌐 開啟正式網站</a>'+
+      '</div>'+
+      '<p class="note">GitHub 回傳 HTTP 204，代表發布工作已被正式接受。</p>'+
+      '<button class="close" onclick="google.script.host.close()">關閉</button>';
+  }else{
+    card.innerHTML =
+      '<div class="icon">❌</div>'+
+      '<h1>網站發布失敗</h1>'+
+      '<div class="error">'+esc(result && result.message ? result.message : '發生未知錯誤。')+'</div>'+
+      '<div class="buttons">'+
+        '<a class="primary" href="'+esc(result.actionsUrl || '')+'">📄 查看 GitHub Actions</a>'+
+        '<a class="secondary" href="'+esc(result.websiteUrl || '')+'">🌐 開啟正式網站</a>'+
+      '</div>'+
+      '<button class="close" onclick="google.script.host.close()">關閉</button>';
+  }
+</script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>作品管理｜CMS V7.6 Gallery Manager</title>
-<link rel="stylesheet" href="../style.css"><link rel="stylesheet" href="admin.css">
+<link rel="stylesheet" href="../style.css?v=7909c"><link rel="stylesheet" href="admin.css">
 </head>
 <body class="admin-page">
 <main class="admin-wide gallery-manager-page">
@@ -46,7 +46,7 @@
 <div id="sentinel" aria-hidden="true"></div>
 </main>
 
-<script src="../api/cms.js"></script><script src="auth-guard.js"></script>
+<script src="../api/cms.js?v=7909c"></script><script src="admin-images.js?v=7909c"></script><script src="auth-guard.js"></script>
 <script>
 const PAGE_SIZE=16;
 let page=1,loading=false,hasMore=true,requestSeq=0,controller=null,meta=null,lastSelectedId='';
@@ -57,7 +57,7 @@ const grid=document.getElementById('grid'),summary=document.getElementById('summ
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
 function bool(v){return v===true||String(v||'').toUpperCase()==='TRUE'||String(v||'')==='是';}
 function normalizeArtworkId(a){return String(a?.artworkId||a?.id||'').trim().toUpperCase();}
-function img(a){const id=normalizeArtworkId(a);return /^XH\d{4}$/.test(id)?`../images/artworks/1200/${id}.webp`:'../assets/images/art-placeholder-1.svg';}
+function img(a){return XxyAdminImages.primary(a,'thumb');}
 async function ensureImageManifest(){if(Object.keys(imageManifest.artworks||{}).length)return imageManifest;try{const r=await fetch('../data/images-manifest.json?v=cms-v7.7.1-github-images',{cache:'force-cache'});if(r.ok)imageManifest=await r.json();}catch(_){ }return imageManifest;}
 function text(v,fallback='—'){const s=String(v??'').trim();return s||fallback;}
 function optionHtml(rows,idKey,nameKey,value){return '<option value="">未設定</option>'+rows.map(r=>`<option value="${esc(r[idKey])}" ${String(r[idKey])===String(value||'')?'selected':''}>${esc(r[nameKey]||r[idKey])}</option>`).join('');}
@@ -99,7 +99,7 @@ function card(a){
  return `<article class="gallery-manager-card" data-id="${esc(id)}">
   <label class="gallery-card-select" title="選取作品"><input type="checkbox" data-select="${esc(id)}" ${selected.has(id)?'checked':''}><span></span></label>
   <div class="gallery-card-image-wrap skeleton">
-   <img src="${esc(img(a))}" loading="lazy" decoding="async" alt="${esc(a.titleZh||'作品')}" onload="this.parentElement.classList.remove('skeleton');this.classList.add('loaded')">
+   <img src="${esc(img(a))}" data-admin-artwork-image="thumb" loading="lazy" decoding="async" alt="${esc(a.titleZh||'作品')}" onload="this.parentElement.classList.remove('skeleton');this.classList.add('loaded')">
    ${hoverInfo(a)}
   </div>
   <div class="gallery-card-body">
@@ -132,7 +132,7 @@ async function load(reset){
  if(loading)return;if(reset){page=1;hasMore=true;grid.innerHTML='';loaded.clear();selected.clear();dirtyCards.clear();lastSelectedId='';updateBatchPanel();}if(!hasMore)return;
  loading=true;more.hidden=true;summary.textContent='載入中…';const seq=++requestSeq;if(controller)controller.abort();controller=new AbortController();
  try{await ensureMeta();const data=await XxyCms.artworksPage(params(),{signal:controller.signal,cacheMs:120000});if(seq!==requestSeq)return;
-  const list=data.artworks||[];list.forEach(a=>loaded.set(a.artworkId||a.id,a));grid.insertAdjacentHTML('beforeend',list.map(card).join(''));
+  const list=data.artworks||[];list.forEach(a=>loaded.set(a.artworkId||a.id,a));grid.insertAdjacentHTML('beforeend',list.map(card).join(''));list.forEach(a=>{const id=a.artworkId||a.id||'';const cardEl=[...grid.querySelectorAll('.gallery-manager-card')].find(el=>el.dataset.id===String(id));if(cardEl)XxyAdminImages.configure(cardEl.querySelector('[data-admin-artwork-image]'),a,'thumb');});
   hasMore=Boolean(data.hasMore);summary.textContent=`顯示 ${loaded.size} / ${data.total||0} 件作品`;page++;more.hidden=!hasMore;updateBatchPanel();
  }catch(e){if(e.name!=='AbortError')summary.innerHTML='<span class="error">讀取失敗：'+esc(e.message)+'</span>';}finally{if(seq===requestSeq)loading=false;}
 }

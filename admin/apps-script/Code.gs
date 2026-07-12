@@ -44,12 +44,6 @@ const CMS = {
 /* removed duplicate legacy function: onOpen */
 
 
-function openCmsAdmin() {
-  const html = HtmlService.createHtmlOutputFromFile('AdminSidebar')
-    .setTitle('謝秀英藝術館 CMS')
-    .setWidth(420);
-  SpreadsheetApp.getUi().showSidebar(html);
-}
 
 /* removed duplicate legacy function: initMuseumCms */
 
@@ -59,7 +53,8 @@ function openCmsAdmin() {
 
 /**
  * Web API：
- * ?action=siteBundle  完整網站資料
+ * ?action=siteBundle  現行完整網站資料
+ * ?action=siteData    v7.9 完整單一資料 API（STEP 6）
  * ?action=settings    網站設定
  * ?action=home        首頁內容
  * ?action=artworks    公開作品
@@ -171,28 +166,6 @@ function saveContactResponse_(data) {
 
 /* removed duplicate legacy function: syncDriveArtworks */
 
-
-function collectImageFiles_(folder, path, out) {
-  const files = folder.getFiles();
-  while (files.hasNext()) {
-    const file = files.next();
-    const mime = file.getMimeType();
-    if (mime && mime.indexOf('image/') === 0) out.push({ file, path });
-  }
-  const folders = folder.getFolders();
-  while (folders.hasNext()) {
-    const sub = folders.next();
-    collectImageFiles_(sub, path ? path + '/' + sub.getName() : sub.getName(), out);
-  }
-}
-
-function showApiPreview() {
-  SpreadsheetApp.getUi().alert(JSON.stringify(getSiteBundle_(), null, 2).slice(0, 9000));
-}
-
-function showRandomPreview() {
-  SpreadsheetApp.getUi().alert(JSON.stringify(getRandomHomeArtworks_(), null, 2).slice(0, 9000));
-}
 
 function createSettingsSheet_(ss) {
   const rows = [
@@ -526,11 +499,6 @@ function adminUpdateContactStatus(rowIndex, status) {
   if (!col) throw new Error('找不到 status 欄位');
   sh.getRange(row, col).setValue(status || '已處理');
   return { ok: true };
-}
-
-function adminSyncDriveArtworks() {
-  syncDriveArtworks();
-  return adminGetDashboard();
 }
 
 function buildAdminId_(entity) {
@@ -899,11 +867,6 @@ function createArtworkLibrary_(data) {
 /* removed duplicate legacy function: syncDriveArtworks */
 
 
-function adminSyncArtworkLibrary(libraryId) {
-  const lib = getArtworkLibraryById_(libraryId) || getDefaultArtworkLibrary_();
-  return syncArtworkLibrary_(lib);
-}
-
 /* removed duplicate legacy function: syncArtworkLibrary_ */
 
 
@@ -1168,7 +1131,6 @@ function initMuseumCms() {
   createContactResponsesSheet_(ss);
   createPagesSheet_(ss);
   createApiLogSheet_(ss);
-  createDuplicateReportSheet_(ss);
   upgradeArtworkSheetV6(false);
   formatMuseumCms();
   SpreadsheetApp.getUi().alert('完成：CMS v6 後台資料庫已建立/更新。');
@@ -1268,11 +1230,6 @@ function createCollectionStatusesSheet_(ss) {
   ]);
 }
 
-function createDuplicateReportSheet_(ss) {
-  const h = ['checkedAt','groupKey','reason','libraryName','drivePath','fileName','fileId','fileSize','mimeType','md5','url'];
-  upsertTableKeepData_(ss, CMS.sheets.duplicateReport, h, []);
-}
-
 function artworkHeaders_() {
   return [
     'id', 'artworkId',
@@ -1341,7 +1298,7 @@ function fieldLabel_(field) {
     collectionStatusId:'收藏狀態ID', collectionStatus:'收藏狀態', priceNote:'公開價格文字', collectionPrice:'收藏價（後台）', collectionCurrency:'幣別',
     collectionPriceVisibility:'收藏價公開狀態', collectionInfoVisibility:'收藏資訊公開狀態', collectorName:'收藏者', collectionDate:'收藏日期',
     isSold:'是否已售出', isForSale:'是否可販售', allowInquiry:'是否接受洽詢', allowPrint:'是否接受複製畫委託', description:'作品介紹',
-    imageUrl:'展示圖網址', thumbUrl:'縮圖網址', driveFileId:'Drive檔案ID', originalFileName:'原始檔名', drivePath:'Drive路徑', fileSize:'檔案大小', mimeType:'檔案類型',
+    imageUrl:'展示圖網址', thumbUrl:'縮圖網址', CDNimageUrl:'CDN大圖網址', CDNthumbUrl:'CDN縮圖網址', driveFileId:'Drive檔案ID', originalFileName:'原始檔名', drivePath:'Drive路徑', fileSize:'檔案大小', mimeType:'檔案類型',
     isHomeHero:'首頁輪播', isFeatured:'精選作品', isPublic:'是否公開', isGallery:'線上藝廊', isShowcase:'作品展示', exhibition:'展覽', sort:'排序', dataStatus:'資料狀態', seoTitle:'SEO標題', seoDescription:'SEO描述',
     createdAt:'建立日期', updatedAt:'更新日期', typeId:'類型ID', nameZh:'中文名稱', nameEn:'英文名稱', prefixHint:'建議前綴', subjectId:'題材ID', mediumId:'媒材ID', materialId:'材質ID', currencyId:'幣別ID', statusId:'狀態ID'
   };
@@ -1608,102 +1565,6 @@ function upgradeArtworkSheetByNameV6_(sheetName, prefix, showAlert) {
 
 /* removed duplicate legacy function: syncDriveArtworks */
 
-
-function syncArtworkLibrary_(lib) {
-  if (!lib || !lib.sheetName) throw new Error('找不到作品庫設定。');
-  const ss = SpreadsheetApp.getActive();
-  createMasterDataSheets_(ss);
-  repairArtworkLibraryRegistry_();
-  const folderId = lib.driveFolderId || extractDriveId_(lib.driveFolderUrl || '');
-  if (!folderId) throw new Error('請先在「作品庫管理」填入雲端資料夾 ID 或網址：' + lib.libraryName);
-
-  const sh = getOrCreateSheet_(ss, lib.sheetName, artworkHeaders_());
-  rebuildArtworkSheetColumns_(sh, artworkHeaders_());
-  upgradeArtworkSheetByNameV6_(lib.sheetName, lib.prefix || 'WK', false);
-
-  const actualHeaders = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(h => String(h).trim());
-  const existingRows = readTableFromSheet_(lib.sheetName);
-  const existingFileIds = new Set(existingRows.map(r => String(r.driveFileId || '')).filter(Boolean));
-  let nextNo = getNextArtworkNoByPrefix_(existingRows, lib.prefix || 'WK');
-
-  const folder = DriveApp.getFolderById(folderId);
-  const files = [];
-  collectImageFiles_(folder, '', files);
-  const newRows = [];
-
-  files.forEach(item => {
-    const file = item.file;
-    const driveFileId = file.getId();
-    if (existingFileIds.has(driveFileId)) return;
-
-    const fileName = file.getName();
-    const cleanTitle = cleanFileName_(fileName);
-    const parts = item.path ? item.path.split('/').filter(Boolean) : [];
-    const firstFolder = parts[0] || '';
-    const secondFolder = parts[1] || '';
-    const typeId = inferArtworkTypeId_(firstFolder);
-    const typeName = lookupMasterName_(CMS.sheets.artworkTypes, 'typeId', typeId) || firstFolder;
-    const artworkId = formatArtworkIdByPrefix_(lib.prefix || 'WK', nextNo++);
-
-    const rec = {
-      id: artworkId,
-      artworkId: artworkId,
-      artistId: lib.prefix || 'XH',
-      artistName: lib.authorName || '謝秀英',
-      libraryId: lib.libraryId || '',
-      artworkTypeId: typeId,
-      artworkTypeName: typeName,
-      subjectIds: '',
-      subjectNames: secondFolder || '',
-      titleZh: cleanTitle,
-      titleEn: '',
-      year: '',
-      size: '',
-      materialId: '',
-      material: '',
-      mediumId: '',
-      medium: '',
-      collectionStatusId: 'AVAILABLE',
-      collectionStatus: '可洽詢',
-      priceNote: '洽詢',
-      collectionPrice: '',
-      collectionCurrency: 'TWD',
-      collectionPriceVisibility: '隱藏',
-      collectionInfoVisibility: '隱藏',
-      collectorName: '',
-      collectionDate: '',
-      isSold: 'FALSE',
-      isForSale: 'TRUE',
-      allowInquiry: 'TRUE',
-      allowPrint: 'FALSE',
-      description: '',
-      imageUrl: driveImageUrl_(driveFileId, CMS.displaySize),
-      thumbUrl: driveImageUrl_(driveFileId, CMS.thumbSize),
-      driveFileId: driveFileId,
-      originalFileName: fileName,
-      drivePath: item.path,
-      fileSize: file.getSize(),
-      mimeType: file.getMimeType(),
-      isHomeHero: 'FALSE',
-      isFeatured: 'FALSE',
-      isPublic: 'TRUE',
-      isGallery: 'FALSE',
-      isShowcase: 'FALSE',
-      exhibition: '',
-      sort: sh.getLastRow() + newRows.length,
-      dataStatus: '待補資料',
-      seoTitle: '',
-      seoDescription: '',
-      createdAt: isoDate_(),
-      updatedAt: isoDate_()
-    };
-    newRows.push(rowFromRecord_(actualHeaders, rec));
-  });
-
-  if (newRows.length) sh.getRange(sh.getLastRow() + 1, 1, newRows.length, actualHeaders.length).setValues(newRows);
-  formatMuseumCms();
-  return { ok: true, scanned: files.length, added: newRows.length, sheetName: lib.sheetName, message: '同步完成：' + lib.libraryName + ' 掃描 ' + files.length + ' 個圖片檔，新增 ' + newRows.length + ' 件作品。' };
-}
 
 /* =========================================================
  * CMS Admin v6.3｜選單安全化 + 作品庫格式/欄寬修正
@@ -2222,6 +2083,8 @@ function lightArtworkV72_(a) {
     collectionStatusId:a.collectionStatusId || '',
     collectionStatus:a.collectionStatus || '',
     originalFileName:a.originalFileName || '',
+    CDNthumbUrl:a.CDNthumbUrl || a.cdnThumbUrl || '',
+    CDNimageUrl:a.CDNimageUrl || a.cdnImageUrl || '',
     thumbUrl:a.thumbUrl || a.imageUrl || '',
     imageUrl:a.imageUrl || a.thumbUrl || '',
     dataStatus:a.dataStatus || '',
@@ -2250,6 +2113,369 @@ const CMS_DISPLAY_SECTIONS = {
   showcase: { flag:'isShowcase', label:'作品展示' }
 };
 
+
+/**
+ * CMS v7.9.0 STEP 6：siteData 完整欄位對接。
+ *
+ * 設計原則：
+ * - 一次 API 請求內，每張工作表最多只呼叫一次 getDataRange().getValues()。
+ * - 公開輸出沿用既有隱私規則：只輸出公開分頁／公開作品，並移除後台收藏價等私密欄位。
+ * - 本階段只完成 Apps Script API；官網前端仍維持舊資料來源，STEP 7 才切換。
+ */
+function siteDataCoreSheetPlan_() {
+  return {
+    settings: CMS.sheets.settings,
+    home: CMS.sheets.home,
+    pages: CMS.sheets.pages,
+    gallery: CMS.sheets.gallery,
+    exhibitions: CMS.sheets.exhibitions,
+    history: CMS.sheets.history,
+    notices: CMS.sheets.announcements,
+    books: CMS.sheets.books,
+    contact: CMS.sheets.contacts,
+    artworkLibraries: CMS.sheets.artworkLibraries || '作品庫管理',
+    artists: CMS.sheets.artists,
+    artworkTypes: CMS.sheets.artworkTypes,
+    subjects: CMS.sheets.artworkSubjects,
+    media: CMS.sheets.media,
+    materials: CMS.sheets.materials,
+    currencies: CMS.sheets.currencies,
+    collectionStatuses: CMS.sheets.collectionStatuses
+  };
+}
+
+function siteDataReadSheetOnce_(ss, sheetName, readCache) {
+  const key = String(sheetName || '').trim();
+  if (!key) return { sheetName: key, exists: false, values: [] };
+  if (Object.prototype.hasOwnProperty.call(readCache, key)) return readCache[key];
+  const sh = ss.getSheetByName(key);
+  const item = {
+    sheetName: key,
+    exists: !!sh,
+    values: sh ? sh.getDataRange().getValues() : []
+  };
+  readCache[key] = item;
+  return item;
+}
+
+function siteDataRecordsFromValues_(values) {
+  if (!values || !values.length) return [];
+  const headers = values[0].map(function(value) {
+    return String(value == null ? '' : value).trim();
+  });
+  const start = hasChineseHeaderRowValues_(values, headers) ? 2 : 1;
+  return values.slice(start).filter(function(row) {
+    return row.some(function(value) { return value !== '' && value != null; });
+  }).map(function(row) {
+    const record = {};
+    headers.forEach(function(header, index) {
+      if (header) record[header] = normalize_(row[index]);
+    });
+    return record;
+  });
+}
+
+function siteDataKeyValueFromValues_(values) {
+  const result = {};
+  if (!values || values.length < 2) return result;
+  values.slice(1).forEach(function(row) {
+    const key = String(row[0] == null ? '' : row[0]).trim();
+    if (key) result[key] = normalize_(row[1]);
+  });
+  return result;
+}
+
+function siteDataPublicRowsFromValues_(values) {
+  return siteDataRecordsFromValues_(values)
+    .filter(function(row) { return bool_(row.isPublic, true); })
+    .sort(function(a, b) { return Number(a.sort || 9999) - Number(b.sort || 9999); });
+}
+
+function siteDataSettingsFromValues_(values) {
+  const kv = siteDataKeyValueFromValues_(values);
+  return {
+    siteName: kv.siteName || '謝秀英書畫藝術館',
+    artistNameZh: kv.artistNameZh || '謝秀英',
+    artistNameEn: kv.artistNameEn || 'Xie Xiu-Ying',
+    artistMark: kv.artistMark || '秀',
+    primaryColor: kv.primaryColor || '#6bc2ba',
+    facebookUrl: kv.facebookUrl || 'https://www.facebook.com/XieXiuYing1960/',
+    showNotice: bool_(kv.showNotice, false),
+    driveFolderUrl: kv.driveFolderUrl || '',
+    driveFolderId: kv.driveFolderId || extractDriveId_(kv.driveFolderUrl || ''),
+    copyrightText: kv.copyrightText || '本網站作品圖片著作權歸謝秀英所有，未經授權不得下載、轉載、商用或 AI 訓練。',
+    nav: safeJson_(kv.nav, defaultNav_()),
+    homeQuickNav: safeJson_(kv.homeQuickNav, defaultQuickNav_()),
+    contactReasons: safeJson_(kv.contactReasons, ['作品收藏洽詢', '展覽邀約', '課程／教學', '媒體採訪', '其他合作'])
+  };
+}
+
+function siteDataHomeFromValues_(values) {
+  const kv = siteDataKeyValueFromValues_(values);
+  return {
+    heroEyebrow: kv.heroEyebrow || 'XIE XIU-YING ART MUSEUM',
+    heroTitle: kv.heroTitle || '謝秀英\n書畫藝術館',
+    heroSubtitle: kv.heroSubtitle || '以書畫來美化這個世界，以書畫來安慰人的心靈。',
+    heroPrimaryLabel: kv.heroPrimaryLabel || '進入線上藝廊',
+    heroPrimaryHref: kv.heroPrimaryHref || 'gallery.html',
+    heroSecondaryLabel: kv.heroSecondaryLabel || 'Facebook 粉專',
+    heroSecondaryHref: kv.heroSecondaryHref || 'https://www.facebook.com/XieXiuYing1960/',
+    quoteText: kv.quoteText || '一花一草皆佛性，昆蟲飛鳥皆如來。',
+    quoteAuthor: kv.quoteAuthor || '謝秀英　無心居士合十',
+    facebookTitle: kv.facebookTitle || '粉專最新消息',
+    facebookText: kv.facebookText || '',
+    facebookEmbedEnabled: bool_(kv.facebookEmbedEnabled, false),
+    facebookHeight: Number(kv.facebookHeight || 760)
+  };
+}
+
+function siteDataPagesFromValues_(values) {
+  const rows = siteDataPublicRowsFromValues_(values);
+  const pages = {};
+  rows.forEach(function(row) {
+    const pageId = String(row.pageId || '').trim();
+    if (!pageId) return;
+    if (!pages[pageId]) {
+      pages[pageId] = {
+        pageId: pageId,
+        eyebrow: row.eyebrow || '',
+        title: row.pageTitle || '',
+        subtitle: row.subtitle || '',
+        sections: []
+      };
+    }
+    pages[pageId].sections.push({
+      title: row.sectionTitle || '',
+      body: row.body || '',
+      sort: Number(row.sort || 0)
+    });
+  });
+  Object.keys(pages).forEach(function(id) {
+    pages[id].sections.sort(function(a, b) { return a.sort - b.sort; });
+  });
+  return pages;
+}
+
+function siteDataContactFromValues_(values) {
+  const kv = siteDataKeyValueFromValues_(values);
+  return {
+    requireLogin: bool_(kv.requireLogin, true),
+    allowedLoginProviders: safeJson_(kv.allowedLoginProviders, ['Google', 'LINE']),
+    title: kv.title || '聯絡與洽詢',
+    description: kv.description || '請留下需求與聯絡方式，將由專人主動回覆。',
+    note: kv.note || '正式版可串接 Google 登入或 LINE Login 後再開放填寫。'
+  };
+}
+
+function siteDataLibraryDefinitions_(ss, registryValues) {
+  const registered = siteDataRecordsFromValues_(registryValues).filter(function(lib) {
+    return String(lib.sheetName || '').trim() && bool_(lib.isActive, true) && bool_(lib.isPublic, true);
+  });
+  if (registered.length) return registered;
+
+  const fallbackNames = ['謝秀英作品庫', CMS.sheets.artworks, '作品庫'];
+  const seen = {};
+  const fallback = [];
+  fallbackNames.forEach(function(name) {
+    name = String(name || '').trim();
+    if (!name || seen[name] || !ss.getSheetByName(name)) return;
+    seen[name] = true;
+    fallback.push({
+      libraryId: name === '謝秀英作品庫' ? 'LIB_XH' : '',
+      libraryName: name,
+      sheetName: name,
+      authorName: name === '謝秀英作品庫' ? '謝秀英' : '',
+      prefix: name === '謝秀英作品庫' ? 'XH' : '',
+      isActive: true,
+      isPublic: true,
+      sort: fallback.length + 1
+    });
+  });
+  return fallback;
+}
+
+function siteDataPublicArtworks_(ss, libraries, readCache) {
+  const rows = [];
+  libraries.forEach(function(lib) {
+    const sheetName = String(lib.sheetName || '').trim();
+    if (!sheetName) return;
+    const item = siteDataReadSheetOnce_(ss, sheetName, readCache);
+    siteDataRecordsFromValues_(item.values).forEach(function(source) {
+      if (!bool_(source.isPublic, true)) return;
+      const row = Object.assign({
+        libraryId: lib.libraryId || source.libraryId || '',
+        libraryName: lib.libraryName || sheetName,
+        librarySheetName: sheetName,
+        artistName: source.artistName || lib.authorName || ''
+      }, source);
+      githubArtworkImageUrls_(row);
+      rows.push(sanitizeArtworkForPublic_(row));
+    });
+  });
+  return rows.sort(function(a, b) {
+    return Number(a.sort || 9999) - Number(b.sort || 9999);
+  });
+}
+
+function siteDataRandomHome_(artworks) {
+  const heroPool = shuffle_((artworks || []).filter(function(row) { return bool_(row.isHomeHero, false); }));
+  const hero = heroPool.slice(0, CMS.randomHeroLimit);
+  const heroIds = {};
+  hero.forEach(function(row) { heroIds[String(row.artworkId || row.id || '')] = true; });
+  const featuredPool = shuffle_((artworks || []).filter(function(row) {
+    return bool_(row.isFeatured, false) && !heroIds[String(row.artworkId || row.id || '')];
+  }));
+  return { hero: hero, featured: featuredPool.slice(0, CMS.randomFeaturedLimit) };
+}
+
+
+function siteDataImageManifest_(artworks) {
+  const manifest = {
+    version: 'cms-v7.9.0-site-data',
+    namingRule: 'Artwork image filename must equal artworkId, e.g. XH0001.webp',
+    artworks: {},
+    artworkOrder: [],
+    teacherPhotos: {
+      1600: [],
+      600: []
+    },
+    teacherPhotoCdn: {
+      1600: [],
+      600: []
+    }
+  };
+  for (let i = 1; i <= 8; i++) {
+    const n = String(i).padStart(3, '0');
+    const teacher1600 = 'images/yingphoto/1600/xiexiuying' + n + '.webp';
+    const teacher600 = 'images/yingphoto/600/xiexiuying' + n + '.webp';
+    manifest.teacherPhotos['1600'].push(teacher1600);
+    manifest.teacherPhotos['600'].push(teacher600);
+    manifest.teacherPhotoCdn['1600'].push('https://cdn.jsdelivr.net/gh/siyuye/XieXiuYing1960@main/' + teacher1600);
+    manifest.teacherPhotoCdn['600'].push('https://cdn.jsdelivr.net/gh/siyuye/XieXiuYing1960@main/' + teacher600);
+  }
+  (artworks || []).forEach(function(row) {
+    const id = String(row.artworkId || row.id || '').trim().toUpperCase();
+    if (!/^XH\d{4}$/.test(id)) return;
+    manifest.artworkOrder.push(id);
+    manifest.artworks[id] = {
+      artworkId: id,
+      fileName: id + '.webp',
+      1200: 'images/artworks/1200/' + id + '.webp',
+      2400: 'images/artworks/2400/' + id + '.webp',
+      cdn1200: 'https://cdn.jsdelivr.net/gh/siyuye/XieXiuYing1960@main/images/artworks/1200/' + id + '.webp',
+      cdn2400: 'https://cdn.jsdelivr.net/gh/siyuye/XieXiuYing1960@main/images/artworks/2400/' + id + '.webp'
+    };
+  });
+  return manifest;
+}
+
+function siteDataValidate_(payload) {
+  const errors = [];
+  const warnings = [];
+  if (!payload || payload.ok !== true) errors.push('payload.ok 必須為 true');
+  if (Number(payload.schemaVersion) !== 1) errors.push('schemaVersion 必須為 1');
+  if (!payload.generatedAt) errors.push('缺少 generatedAt');
+  if (!payload.settings || typeof payload.settings.showNotice !== 'boolean') errors.push('settings.showNotice 必須為布林值');
+  ['artworks', 'gallery', 'exhibitions', 'history', 'notices'].forEach(function(key) {
+    if (!Array.isArray(payload[key])) errors.push(key + ' 必須為陣列');
+  });
+  if (!payload.pages || typeof payload.pages !== 'object' || Array.isArray(payload.pages)) errors.push('pages 必須為物件');
+  if (!payload.artworks.length) warnings.push('沒有可公開輸出的作品');
+  return { valid: errors.length === 0, errors: errors, warnings: warnings };
+}
+
+function getSiteData_() {
+  const ss = SpreadsheetApp.getActive();
+  const plan = siteDataCoreSheetPlan_();
+  const readCache = {};
+  const snapshot = {};
+
+  Object.keys(plan).forEach(function(section) {
+    snapshot[section] = siteDataReadSheetOnce_(ss, plan[section], readCache);
+  });
+
+  const libraries = siteDataLibraryDefinitions_(ss, snapshot.artworkLibraries.values);
+  const artworks = siteDataPublicArtworks_(ss, libraries, readCache);
+  const notices = siteDataPublicRowsFromValues_(snapshot.notices.values);
+  const settings = siteDataSettingsFromValues_(snapshot.settings.values);
+
+  const payload = {
+    ok: true,
+    schemaVersion: 1,
+    dataVersion: Utilities.formatDate(new Date(), CMS.timezone, 'yyyyMMddHHmmss'),
+    generatedAt: isoNow_(),
+    version: CMS.version,
+    settings: settings,
+    home: siteDataHomeFromValues_(snapshot.home.values),
+    pages: siteDataPagesFromValues_(snapshot.pages.values),
+    artworks: artworks,
+    gallery: siteDataPublicRowsFromValues_(snapshot.gallery.values),
+    exhibitions: siteDataPublicRowsFromValues_(snapshot.exhibitions.values),
+    history: siteDataPublicRowsFromValues_(snapshot.history.values),
+    notices: notices,
+    announcements: notices,
+    books: siteDataPublicRowsFromValues_(snapshot.books.values),
+    contact: siteDataContactFromValues_(snapshot.contact.values),
+    categories: siteDataPublicRowsFromValues_(snapshot.artworkTypes.values),
+    artworkTypes: siteDataPublicRowsFromValues_(snapshot.artworkTypes.values),
+    subjects: siteDataPublicRowsFromValues_(snapshot.subjects.values),
+    media: siteDataPublicRowsFromValues_(snapshot.media.values),
+    materials: siteDataPublicRowsFromValues_(snapshot.materials.values),
+    currencies: siteDataPublicRowsFromValues_(snapshot.currencies.values),
+    collectionStatuses: siteDataPublicRowsFromValues_(snapshot.collectionStatuses.values),
+    artists: siteDataPublicRowsFromValues_(snapshot.artists.values),
+    randomHome: siteDataRandomHome_(artworks),
+    imageManifest: siteDataImageManifest_(artworks),
+    meta: {
+      stage: 'complete-field-mapping',
+      completeFieldMapping: true,
+      sheetReadMode: 'one-getDataRange-per-sheet',
+      libraryCount: libraries.length,
+      publicArtworkCount: artworks.length,
+      sheets: Object.keys(readCache).reduce(function(result, sheetName) {
+        const item = readCache[sheetName];
+        result[sheetName] = {
+          exists: item.exists,
+          rowCount: Math.max(0, item.values.length - 1)
+        };
+        return result;
+      }, {})
+    }
+  };
+
+  payload.validation = siteDataValidate_(payload);
+  if (!payload.validation.valid) {
+    throw new Error('siteData 驗證失敗：' + payload.validation.errors.join('；'));
+  }
+  return payload;
+}
+
+
+/**
+ * STEP 6 手動驗證函式。
+ * 可在 Apps Script 編輯器直接執行，成功時回傳摘要，失敗時會拋出明確錯誤。
+ */
+function testSiteDataStep6() {
+  const payload = getSiteData_();
+  const validation = siteDataValidate_(payload);
+  if (!validation.valid) throw new Error('STEP 6 驗證失敗：' + validation.errors.join('；'));
+  const summary = {
+    ok: true,
+    generatedAt: payload.generatedAt,
+    showNoticeType: typeof payload.settings.showNotice,
+    showNotice: payload.settings.showNotice,
+    artworks: payload.artworks.length,
+    gallery: payload.gallery.length,
+    exhibitions: payload.exhibitions.length,
+    history: payload.history.length,
+    notices: payload.notices.length,
+    pages: Object.keys(payload.pages).length,
+    warnings: validation.warnings
+  };
+  Logger.log(JSON.stringify(summary, null, 2));
+  return summary;
+}
+
 function doGet(e) {
   const params = e && e.parameter ? e.parameter : {};
   const action = String(params.action || 'siteBundle').trim();
@@ -2261,6 +2487,7 @@ function doGet(e) {
     else if (action === 'adminMeta') payload = getAdminMetaV72B_();
     else if (action === 'displayOrder') payload = getDisplayOrderV72D_(params.section || 'homeHero');
     else if (action === 'siteBundle') payload = getSiteBundle_();
+    else if (action === 'siteData') payload = getSiteData_();
     else if (action === 'settings') payload = { ok:true, settings:getSettings_() };
     else if (action === 'home') payload = { ok:true, home:getHome_() };
     else if (action === 'artworks') payload = { ok:true, artworks:getAllAdminArtworksV72_() };
@@ -2368,6 +2595,7 @@ function getDisplayOrderV72D_(section) {
     return {
       artworkId:id, sort:i+1, titleZh:a.titleZh||a.originalFileName||'未命名作品', titleEn:a.titleEn||'',
       artistName:a.artistName||'', libraryId:a.libraryId||'', librarySheetName:a.librarySheetName||'',
+      CDNthumbUrl:a.CDNthumbUrl||a.cdnThumbUrl||'', CDNimageUrl:a.CDNimageUrl||a.cdnImageUrl||'',
       thumbUrl:a.thumbUrl||a.imageUrl||'', imageUrl:a.imageUrl||a.thumbUrl||'', originalFileName:a.originalFileName||''
     };
   });
@@ -2390,364 +2618,331 @@ function saveDisplayOrderV72D_(token, data) {
 }
 
 /* =========================================================
- * CMS v7.4｜作品庫同步與重複檢查精簡版
- * 2026-07
+ * CMS v7.9.0 STEP 9-A｜作品圖片網址工具
  *
- * 重要規格：
- * 1. 主選單只保留「指定作品庫同步」與「指定作品庫重複檢查」。
- * 2. 不再自動建立、升級、重排或格式化作品庫。
- * 3. 作品庫由使用者手動建立，並於「作品庫管理」登記工作表與 Drive 資料夾。
- * 4. 同步從最後一筆「系統ID」的下一列開始寫入，優先使用已存在的空白格式列。
- * 5. 不使用 appendRow、不重建欄位、不清除格式、不破壞下拉選單與公式。
- * 6. 公式欄位由試算表維護，同步時不寫入：作品類型ID、題材ID、材質ID、媒材ID、收藏狀態ID。
+ * 本版已拆除：
+ * - 試算表內 CMS 管理面板
+ * - Google Drive 同步作品庫
+ * - 重複照片檢查
+ * - 兩個 API 測試選單
+ *
+ * 圖片網址更新一律先從「作品庫管理」sheetName 欄
+ * 第 3 列開始選擇單一作品庫，再只更新該分頁。
  * ========================================================= */
-CMS.version = '7.7.2-clean-github-images';
+CMS.version = '7.9.0-step9a-image-url-tools';
+
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('謝秀英藝術館後台')
-    .addItem('開啟 CMS 管理面板', 'openCmsAdmin')
-    .addItem('開啟作品預覽', 'openArtworkPreviewSidebar')
+    .addItem('① 開啟作品預覽', 'openArtworkPreviewSidebar')
     .addSeparator()
-    .addItem('從 Google Drive 同步指定作品庫', 'syncDriveArtworks')
-    .addItem('檢查指定作品庫重複照片', 'scanDuplicateArtworkFiles')
+    .addItem('② 將作品圖片欄位改為 GitHub WebP', 'openGithubImageLibraryPicker')
+    .addItem('③ 將 CDN 網址增加到欄位內', 'openCdnImageLibraryPicker')
     .addSeparator()
-    .addItem('④ 將作品圖片欄位改為 GitHub WebP', 'migrateArtworkImagesToGithub')
-    .addSeparator()
-    .addItem('API 測試：查看完整資料包', 'showApiPreview')
-    .addItem('API 測試：查看作品隨機抽選', 'showRandomPreview')
+    .addItem('④ 發布網站資料', 'publishWebsiteData')
     .addToUi();
 }
 
-/** 開啟作品庫選擇器：同步 */
-function syncDriveArtworks() {
-  return openArtworkLibraryPicker('sync');
-}
 
-/** 開啟作品庫選擇器：重複檢查 */
-function scanDuplicateArtworkFiles() {
-  return openArtworkLibraryPicker('duplicate');
-}
+/* =========================================================
+ * CMS v7.9.0 STEP 11｜試算表手動發布網站資料
+ *
+ * 由 Apps Script 呼叫 GitHub Actions workflow_dispatch。
+ * GitHub Token 僅儲存在 Script Properties，不寫入程式碼。
+ * ========================================================= */
+CMS.version = '7.9.0-step11-publish-button';
 
-function openArtworkLibraryPicker(mode) {
-  const libs = getArtworkLibrariesForPicker_();
-  if (!libs.length) {
-    SpreadsheetApp.getUi().alert('「作品庫管理」目前沒有可用作品庫。請先手動建立作品庫分頁，並在「作品庫管理」填入作品庫 ID、分頁名稱及 Drive 資料夾網址。');
-    return;
-  }
-  const tpl = HtmlService.createTemplateFromFile('LibraryPicker');
-  tpl.mode = mode === 'duplicate' ? 'duplicate' : 'sync';
-  tpl.librariesJson = JSON.stringify(libs);
-  const title = mode === 'duplicate' ? '選擇要檢查的作品庫' : '選擇要同步的作品庫';
-  SpreadsheetApp.getUi().showModalDialog(tpl.evaluate().setWidth(500).setHeight(410), title);
-}
+const GITHUB_PUBLISH = {
+  owner: 'siyuye',
+  repo: 'XieXiuYing1960',
+  workflowFile: 'sync-site-data.yml',
+  branch: 'main',
+  workflowName: 'Sync Site Data',
+  actionsUrl: 'https://github.com/siyuye/XieXiuYing1960/actions/workflows/sync-site-data.yml',
+  websiteUrl: 'https://siyuye.github.io/XieXiuYing1960/'
+};
 
-/** HTML 選擇器呼叫的公開函式 */
-function runArtworkLibraryAction(mode, libraryId) {
-  const lib = findArtworkLibraryById_(libraryId);
-  if (!lib) throw new Error('找不到指定作品庫，請重新開啟選擇器。');
-  if (mode === 'duplicate') return scanDuplicateArtworkLibrary_(lib);
-  return syncArtworkLibraryV74_(lib);
-}
+/**
+ * 試算表選單：④ 發布網站資料
+ * GitHub 接受 workflow_dispatch 時會回傳 HTTP 204。
+ */
+function publishWebsiteData() {
+  const ui = SpreadsheetApp.getUi();
+  try {
+    const config = getGithubPublishConfig_();
+    const endpoint = 'https://api.github.com/repos/'
+      + encodeURIComponent(config.owner) + '/'
+      + encodeURIComponent(config.repo) + '/actions/workflows/'
+      + encodeURIComponent(config.workflowFile) + '/dispatches';
 
-function getArtworkLibrariesForPicker_() {
-  const ss = SpreadsheetApp.getActive();
-  const sheetName = CMS.sheets.artworkLibraries || '作品庫管理';
-  const sh = ss.getSheetByName(sheetName);
-  if (!sh) return [];
-  return readTableFromSheet_(sheetName)
-    .filter(lib => {
-      const active = lib.isActive === '' || lib.isActive == null || truthyV74_(lib.isActive);
-      return active && String(lib.libraryId || '').trim() && String(lib.sheetName || '').trim();
-    })
-    .map(lib => {
-      const folderId = String(lib.driveFolderId || extractDriveId_(lib.driveFolderUrl || '') || '').trim();
-      return {
-        libraryId: String(lib.libraryId || '').trim(),
-        libraryName: String(lib.libraryName || lib.sheetName || '').trim(),
-        sheetName: String(lib.sheetName || '').trim(),
-        authorName: String(lib.authorName || '').trim(),
-        prefix: String(lib.prefix || 'WK').trim().toUpperCase(),
-        driveFolderId: folderId,
-        driveFolderUrl: String(lib.driveFolderUrl || '').trim(),
-        ready: !!(ss.getSheetByName(String(lib.sheetName || '').trim()) && folderId)
-      };
+    const response = UrlFetchApp.fetch(endpoint, {
+      method: 'post',
+      contentType: 'application/json',
+      headers: {
+        Authorization: 'Bearer ' + config.token,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'XieXiuYing1960-Apps-Script'
+      },
+      payload: JSON.stringify({ ref: config.branch }),
+      muteHttpExceptions: true
     });
-}
 
-function findArtworkLibraryById_(libraryId) {
-  const target = String(libraryId || '').trim();
-  const all = getArtworkLibrariesForPicker_();
-  return all.find(lib => lib.libraryId === target) || null;
-}
+    const status = response.getResponseCode();
+    const body = String(response.getContentText() || '').trim();
 
-function truthyV74_(value) {
-  return value === true || String(value || '').toUpperCase() === 'TRUE' || String(value || '') === '1';
+    if (status !== 204) {
+      throw new Error(formatGithubPublishError_(status, body));
+    }
+
+    showGithubPublishResult_({
+      ok: true,
+      workflowName: config.workflowName,
+      branch: config.branch,
+      repository: config.owner + '/' + config.repo,
+      actionsUrl: config.actionsUrl,
+      websiteUrl: config.websiteUrl
+    });
+    return { ok: true, httpStatus: status };
+  } catch (error) {
+    const message = error && error.message ? error.message : String(error);
+    showGithubPublishResult_({
+      ok: false,
+      message: message,
+      actionsUrl: GITHUB_PUBLISH.actionsUrl,
+      websiteUrl: GITHUB_PUBLISH.websiteUrl
+    });
+    return { ok: false, message: message };
+  }
 }
 
 /**
- * 指定作品庫同步。
- * 不重建表格、不移動欄位、不格式化；從最後一筆系統 ID 的下一列開始。
+ * 讀取發布設定。四個非機密值有安全預設；GITHUB_TOKEN 必須自行設定。
  */
-function syncArtworkLibraryV74_(lib) {
-  const ss = SpreadsheetApp.getActive();
-  const sh = ss.getSheetByName(lib.sheetName);
-  if (!sh) throw new Error('找不到作品庫分頁：「' + lib.sheetName + '」。請先手動建立分頁。');
-  const folderId = String(lib.driveFolderId || extractDriveId_(lib.driveFolderUrl || '') || '').trim();
-  if (!folderId) throw new Error('「作品庫管理」尚未填入 Drive 資料夾網址或 ID：' + lib.libraryName);
-  if (sh.getLastColumn() < 1) throw new Error('作品庫分頁沒有欄位標題：' + lib.sheetName);
-
-  const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0].map(v => String(v || '').trim());
-  const hmap = getHeaderIndexMap_(headers);
-  const systemIdCol = hmap.id || hmap.artworkId;
-  if (!systemIdCol) throw new Error('作品庫缺少 id 或 artworkId 欄位，無法判斷最後一筆系統 ID。');
-  if (!hmap.driveFileId) throw new Error('作品庫缺少 driveFileId 欄位，無法避免重複同步。');
-
-  const lastSystemRow = findLastNonBlankRowInColumnV74_(sh, systemIdCol, 3);
-  const startRow = Math.max(3, lastSystemRow + 1);
-  const existingRows = readArtworkRowsToSystemRowV74_(sh, headers, lastSystemRow);
-  const existingFileIds = new Set(existingRows.map(r => String(r.driveFileId || '').trim()).filter(Boolean));
-  const prefix = String(lib.prefix || 'WK').trim().toUpperCase() || 'WK';
-  let nextNo = getNextArtworkNoByPrefix_(existingRows, prefix);
-
-  const folder = DriveApp.getFolderById(folderId);
-  const files = [];
-  collectImageFiles_(folder, '', files);
-  const records = [];
-
-  files.forEach(item => {
-    const file = item.file;
-    const driveFileId = file.getId();
-    if (existingFileIds.has(driveFileId)) return;
-
-    const fileName = file.getName();
-    const cleanTitle = cleanFileName_(fileName);
-    const parts = item.path ? item.path.split('/').filter(Boolean) : [];
-    const firstFolder = parts[0] || '';
-    const secondFolder = parts[1] || '';
-    const artworkId = formatArtworkIdByPrefix_(prefix, nextNo++);
-
-    records.push({
-      id: artworkId,
-      artworkId: artworkId,
-      artistId: prefix,
-      artistName: lib.authorName || '',
-      libraryId: lib.libraryId || '',
-      // ID 對照欄由工作表公式自動產生，這裡只填中文欄位。
-      artworkTypeName: firstFolder || '',
-      subjectNames: secondFolder || '',
-      titleZh: cleanTitle,
-      titleEn: '',
-      year: '',
-      size: '',
-      material: '',
-      medium: '',
-      collectionStatus: '可洽詢',
-      priceNote: '洽詢',
-      collectionPrice: '',
-      collectionCurrency: 'TWD',
-      collectionPriceVisibility: '隱藏',
-      collectionInfoVisibility: '隱藏',
-      collectorName: '',
-      collectionDate: '',
-      isSold: 'FALSE',
-      isForSale: 'TRUE',
-      allowInquiry: 'TRUE',
-      allowPrint: 'FALSE',
-      description: '',
-      imageUrl: driveImageUrl_(driveFileId, CMS.displaySize),
-      thumbUrl: driveImageUrl_(driveFileId, CMS.thumbSize),
-      driveFileId: driveFileId,
-      originalFileName: fileName,
-      drivePath: item.path,
-      fileSize: file.getSize(),
-      mimeType: file.getMimeType(),
-      isHomeHero: 'FALSE',
-      isFeatured: 'FALSE',
-      isPublic: 'TRUE',
-      isGallery: 'FALSE',
-      isShowcase: 'FALSE',
-      exhibition: '',
-      sort: nextNo - 1,
-      dataStatus: '待補資料',
-      seoTitle: '',
-      seoDescription: '',
-      createdAt: isoDate_(),
-      updatedAt: isoDate_()
-    });
-  });
-
-  if (!records.length) {
-    return { ok:true, scanned:files.length, added:0, sheetName:lib.sheetName, message:'同步完成：沒有發現新作品。共掃描 ' + files.length + ' 個圖片檔。' };
+function getGithubPublishConfig_() {
+  const props = PropertiesService.getScriptProperties();
+  const token = String(props.getProperty('GITHUB_TOKEN') || '').trim();
+  if (!token) {
+    throw new Error(
+      '尚未設定 GITHUB_TOKEN。請先到 Apps Script「專案設定 → 指令碼屬性」新增 GITHUB_TOKEN。'
+    );
   }
 
-  ensureRowsForSyncV74_(sh, startRow, records.length);
-  writeArtworkRecordsPreservingFormulasV74_(sh, headers, startRow, records);
-  SpreadsheetApp.flush();
-  clearCmsArtworkCachesV74_();
-
   return {
-    ok:true,
-    scanned:files.length,
-    added:records.length,
-    startRow:startRow,
-    endRow:startRow + records.length - 1,
-    sheetName:lib.sheetName,
-    message:'同步完成：' + lib.libraryName + ' 共掃描 ' + files.length + ' 個圖片檔，從第 ' + startRow + ' 列開始新增 ' + records.length + ' 件作品。'
+    owner: String(props.getProperty('GITHUB_OWNER') || GITHUB_PUBLISH.owner).trim(),
+    repo: String(props.getProperty('GITHUB_REPO') || GITHUB_PUBLISH.repo).trim(),
+    workflowFile: String(props.getProperty('GITHUB_WORKFLOW_FILE') || GITHUB_PUBLISH.workflowFile).trim(),
+    branch: String(props.getProperty('GITHUB_BRANCH') || GITHUB_PUBLISH.branch).trim(),
+    token: token,
+    workflowName: GITHUB_PUBLISH.workflowName,
+    actionsUrl: GITHUB_PUBLISH.actionsUrl,
+    websiteUrl: GITHUB_PUBLISH.websiteUrl
   };
 }
 
-function findLastNonBlankRowInColumnV74_(sh, col, startRow) {
-  const maxRows = sh.getMaxRows();
-  if (maxRows < startRow) return startRow - 1;
-  const values = sh.getRange(startRow, col, maxRows - startRow + 1, 1).getDisplayValues();
-  for (let i = values.length - 1; i >= 0; i--) {
-    if (String(values[i][0] || '').trim()) return startRow + i;
-  }
-  return startRow - 1;
+/**
+ * 可在 Apps Script 編輯器手動執行一次，寫入四個非機密預設值。
+ * 不會建立、覆蓋或顯示 GITHUB_TOKEN。
+ */
+function initializeGithubPublishSettings() {
+  PropertiesService.getScriptProperties().setProperties({
+    GITHUB_OWNER: GITHUB_PUBLISH.owner,
+    GITHUB_REPO: GITHUB_PUBLISH.repo,
+    GITHUB_WORKFLOW_FILE: GITHUB_PUBLISH.workflowFile,
+    GITHUB_BRANCH: GITHUB_PUBLISH.branch
+  }, false);
+  SpreadsheetApp.getUi().alert(
+    '已寫入 GitHub 發布基本設定。\\n\\n'
+    + '尚需自行新增 GITHUB_TOKEN，之後即可使用「④ 發布網站資料」。'
+  );
 }
 
-function readArtworkRowsToSystemRowV74_(sh, headers, lastSystemRow) {
-  if (lastSystemRow < 3) return [];
-  const values = sh.getRange(3, 1, lastSystemRow - 2, headers.length).getValues();
-  return values.map(row => {
-    const obj = {};
-    headers.forEach((h, i) => { if (h) obj[h] = normalize_(row[i]); });
-    return obj;
-  }).filter(r => String(r.id || r.artworkId || '').trim());
+function showGithubPublishResult_(result) {
+  const tpl = HtmlService.createTemplateFromFile('PublishResult');
+  tpl.resultJson = JSON.stringify(result || {});
+  SpreadsheetApp.getUi().showModalDialog(
+    tpl.evaluate().setWidth(560).setHeight(result && result.ok ? 470 : 430),
+    result && result.ok ? '網站發布工作已送出' : '網站發布失敗'
+  );
 }
 
-function ensureRowsForSyncV74_(sh, startRow, count) {
-  const requiredLastRow = startRow + count - 1;
-  if (requiredLastRow <= sh.getMaxRows()) return;
-  const addCount = requiredLastRow - sh.getMaxRows();
-  const oldMax = sh.getMaxRows();
-  sh.insertRowsAfter(oldMax, addCount);
-
-  // 只複製格式與資料驗證，不複製任何資料值。
-  const templateRow = Math.max(3, Math.min(startRow - 1, oldMax));
-  if (templateRow >= 3 && sh.getLastColumn() > 0) {
-    const src = sh.getRange(templateRow, 1, 1, sh.getLastColumn());
-    const dst = sh.getRange(oldMax + 1, 1, addCount, sh.getLastColumn());
-    src.copyTo(dst, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
-    const validations = src.getDataValidations()[0];
-    dst.setDataValidations(Array.from({length:addCount}, () => validations.slice()));
-  }
-}
-
-function writeArtworkRecordsPreservingFormulasV74_(sh, headers, startRow, records) {
-  // 這些欄位已由使用者在作品庫範本中設定 ARRAYFORMULA／對照公式，絕不可覆寫。
-  const protectedFormulaFields = new Set([
-    'artworkTypeId', 'subjectIds', 'materialId', 'mediumId', 'collectionStatusId'
-  ]);
-
-  const writableCols = [];
-  headers.forEach((h, idx) => {
-    if (!h || protectedFormulaFields.has(h)) return;
-    if (records.some(rec => Object.prototype.hasOwnProperty.call(rec, h))) writableCols.push(idx + 1);
-  });
-  if (!writableCols.length) throw new Error('找不到可寫入欄位。');
-
-  // 將相鄰欄位合併成少量 setValues，既快又不碰公式欄。
-  const groups = [];
-  writableCols.forEach(col => {
-    const last = groups[groups.length - 1];
-    if (last && col === last.end + 1) last.end = col;
-    else groups.push({start:col, end:col});
-  });
-
-  groups.forEach(group => {
-    const width = group.end - group.start + 1;
-    const values = records.map(rec => {
-      const row = [];
-      for (let col = group.start; col <= group.end; col++) {
-        const field = headers[col - 1];
-        row.push(Object.prototype.hasOwnProperty.call(rec, field) ? rec[field] : '');
-      }
-      return row;
-    });
-    sh.getRange(startRow, group.start, records.length, width).setValues(values);
-  });
-}
-
-function clearCmsArtworkCachesV74_() {
+function formatGithubPublishError_(status, body) {
+  let detail = body;
   try {
-    CacheService.getScriptCache().removeAll(['v72a_all_artworks','v72b_admin_meta']);
+    const parsed = JSON.parse(body || '{}');
+    detail = parsed.message || body;
+    if (parsed.documentation_url) detail += '\\n' + parsed.documentation_url;
+  } catch (error) {}
+
+  const hints = {
+    401: 'Token 無效、已過期，或尚未正確設定。',
+    403: 'Token 權限不足，或 GitHub Actions／Repository 權限不允許執行。',
+    404: '找不到 Repository 或 Workflow；請確認名稱、分支及 Token 存取權。',
+    422: 'GitHub 無法處理此要求；常見原因是 branch 名稱錯誤或 Workflow 沒有 workflow_dispatch。'
+  };
+
+  return 'GitHub 未接受發布工作。\\n'
+    + 'HTTP：' + status + '\\n'
+    + (hints[status] ? hints[status] + '\\n' : '')
+    + (detail ? 'GitHub：' + detail : 'GitHub 沒有回傳詳細訊息。');
+}
+
+function openGithubImageLibraryPicker() {
+  return openArtworkImageLibraryPicker_('github');
+}
+
+function openCdnImageLibraryPicker() {
+  return openArtworkImageLibraryPicker_('cdn');
+}
+
+function openArtworkImageLibraryPicker_(mode) {
+  const libs = getArtworkLibrariesForImageTools_();
+  if (!libs.length) {
+    SpreadsheetApp.getUi().alert('「作品庫管理」的 sheetName 欄第 3 列開始沒有可用的作品庫分頁。');
+    return;
+  }
+  const tpl = HtmlService.createTemplateFromFile('LibraryPicker');
+  tpl.mode = mode === 'cdn' ? 'cdn' : 'github';
+  tpl.librariesJson = JSON.stringify(libs);
+  const title = mode === 'cdn' ? '選擇要增加 CDN 網址的作品庫' : '選擇要更新 GitHub 圖片網址的作品庫';
+  SpreadsheetApp.getUi().showModalDialog(tpl.evaluate().setWidth(520).setHeight(420), title);
+}
+
+/**
+ * 直接依「作品庫管理」sheetName 欄，自第 3 列開始讀取。
+ * 不要求 Drive 設定，也不掃描任何資料夾。
+ */
+function getArtworkLibrariesForImageTools_() {
+  const ss = SpreadsheetApp.getActive();
+  const sh = ss.getSheetByName(CMS.sheets.artworkLibraries || '作品庫管理');
+  if (!sh || sh.getLastRow() < 3 || sh.getLastColumn() < 1) return [];
+
+  const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0]
+    .map(v => String(v || '').trim());
+  const sheetNameCol = headers.indexOf('sheetName') + 1;
+  if (!sheetNameCol) return [];
+
+  const libraryNameCol = headers.indexOf('libraryName') + 1;
+  const libraryIdCol = headers.indexOf('libraryId') + 1;
+  const rowCount = sh.getLastRow() - 2;
+  const values = sh.getRange(3, 1, rowCount, sh.getLastColumn()).getDisplayValues();
+  const seen = {};
+  const out = [];
+
+  values.forEach((row, index) => {
+    const sheetName = String(row[sheetNameCol - 1] || '').trim();
+    if (!sheetName || seen[sheetName]) return;
+    seen[sheetName] = true;
+    out.push({
+      libraryId: libraryIdCol ? String(row[libraryIdCol - 1] || sheetName).trim() : sheetName,
+      libraryName: libraryNameCol ? String(row[libraryNameCol - 1] || sheetName).trim() : sheetName,
+      sheetName: sheetName,
+      rowNumber: index + 3,
+      ready: !!ss.getSheetByName(sheetName)
+    });
+  });
+  return out;
+}
+
+function runArtworkLibraryAction(mode, sheetName) {
+  const target = String(sheetName || '').trim();
+  const allowed = getArtworkLibrariesForImageTools_().some(lib => lib.sheetName === target);
+  if (!allowed) throw new Error('找不到指定作品庫，請重新開啟選擇器。');
+  if (mode === 'cdn') return addCdnUrlsToArtworkLibrary_(target);
+  return migrateArtworkImagesToGithubBySheet_(target);
+}
+
+function ensureArtworkImageColumns_(sh, requiredHeaders) {
+  let headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0]
+    .map(v => String(v || '').trim());
+  requiredHeaders.forEach(header => {
+    if (headers.indexOf(header) >= 0) return;
+    sh.insertColumnAfter(sh.getLastColumn());
+    sh.getRange(1, sh.getLastColumn()).setValue(header);
+    headers.push(header);
+  });
+  return headers;
+}
+
+function normalizeArtworkImageId_(value) {
+  const id = String(value || '').trim().toUpperCase();
+  return /^[A-Z0-9][A-Z0-9_-]*$/.test(id) ? id : '';
+}
+
+function migrateArtworkImagesToGithubBySheet_(sheetName) {
+  const sh = SpreadsheetApp.getActive().getSheetByName(sheetName);
+  if (!sh) throw new Error('找不到作品庫分頁：「' + sheetName + '」。');
+  if (sh.getLastRow() < 3) return {ok:true, changed:0, sheetName:sheetName, message:'完成：此作品庫目前沒有作品資料。'};
+
+  const headers = ensureArtworkImageColumns_(sh, ['originalFileName', 'imageUrl', 'thumbUrl']);
+  const idCol = headers.indexOf('artworkId') + 1 || headers.indexOf('id') + 1;
+  if (!idCol) throw new Error('作品庫缺少 artworkId 或 id 欄位。');
+  const fileCol = headers.indexOf('originalFileName') + 1;
+  const imageCol = headers.indexOf('imageUrl') + 1;
+  const thumbCol = headers.indexOf('thumbUrl') + 1;
+  const count = sh.getLastRow() - 2;
+  const ids = sh.getRange(3, idCol, count, 1).getDisplayValues();
+  const base = String(CMS.githubPagesBase || 'https://siyuye.github.io/XieXiuYing1960').replace(/\/$/, '');
+  const files = [], images = [], thumbs = [];
+  let changed = 0;
+
+  ids.forEach(row => {
+    const id = normalizeArtworkImageId_(row[0]);
+    if (!id) {
+      files.push(['']); images.push(['']); thumbs.push(['']);
+      return;
+    }
+    files.push([id + '.webp']);
+    images.push([base + '/images/artworks/2400/' + id + '.webp']);
+    thumbs.push([base + '/images/artworks/1200/' + id + '.webp']);
+    changed++;
+  });
+
+  sh.getRange(3, fileCol, count, 1).setValues(files);
+  sh.getRange(3, imageCol, count, 1).setValues(images);
+  sh.getRange(3, thumbCol, count, 1).setValues(thumbs);
+  clearCmsArtworkCachesV79_();
+  return {ok:true, changed:changed, sheetName:sheetName, message:'GitHub WebP 網址更新完成：' + sheetName + '，共更新 ' + changed + ' 筆。'};
+}
+
+function addCdnUrlsToArtworkLibrary_(sheetName) {
+  const sh = SpreadsheetApp.getActive().getSheetByName(sheetName);
+  if (!sh) throw new Error('找不到作品庫分頁：「' + sheetName + '」。');
+  if (sh.getLastRow() < 3) return {ok:true, changed:0, sheetName:sheetName, message:'完成：此作品庫目前沒有作品資料。'};
+
+  const headers = ensureArtworkImageColumns_(sh, ['CDNimageUrl', 'CDNthumbUrl']);
+  const idCol = headers.indexOf('artworkId') + 1 || headers.indexOf('id') + 1;
+  if (!idCol) throw new Error('作品庫缺少 artworkId 或 id 欄位。');
+  const cdnImageCol = headers.indexOf('CDNimageUrl') + 1;
+  const cdnThumbCol = headers.indexOf('CDNthumbUrl') + 1;
+  const count = sh.getLastRow() - 2;
+  const ids = sh.getRange(3, idCol, count, 1).getDisplayValues();
+  const base = 'https://cdn.jsdelivr.net/gh/siyuye/XieXiuYing1960@main/images/artworks';
+  const images = [], thumbs = [];
+  let changed = 0;
+
+  ids.forEach(row => {
+    const id = normalizeArtworkImageId_(row[0]);
+    if (!id) {
+      images.push(['']); thumbs.push(['']);
+      return;
+    }
+    images.push([base + '/2400/' + id + '.webp']);
+    thumbs.push([base + '/1200/' + id + '.webp']);
+    changed++;
+  });
+
+  sh.getRange(3, cdnImageCol, count, 1).setValues(images);
+  sh.getRange(3, cdnThumbCol, count, 1).setValues(thumbs);
+  clearCmsArtworkCachesV79_();
+  return {ok:true, changed:changed, sheetName:sheetName, message:'CDN 網址增加完成：' + sheetName + '，共更新 ' + changed + ' 筆。'};
+}
+
+function clearCmsArtworkCachesV79_() {
+  try {
+    CacheService.getScriptCache().removeAll(['v72a_all_artworks', 'v72b_admin_meta']);
   } catch (err) {}
 }
-
-/** 只檢查使用者選擇的單一作品庫。 */
-function scanDuplicateArtworkLibrary_(lib) {
-  const ss = SpreadsheetApp.getActive();
-  const folderId = String(lib.driveFolderId || extractDriveId_(lib.driveFolderUrl || '') || '').trim();
-  if (!folderId) throw new Error('「作品庫管理」尚未填入 Drive 資料夾網址或 ID：' + lib.libraryName);
-
-  const files = [];
-  collectImageFiles_(DriveApp.getFolderById(folderId), '', files);
-  const items = files.map(item => {
-    const f = item.file;
-    return {
-      libraryName:lib.libraryName,
-      drivePath:item.path,
-      fileName:f.getName(),
-      fileId:f.getId(),
-      fileSize:f.getSize(),
-      mimeType:f.getMimeType(),
-      url:'https://drive.google.com/file/d/' + f.getId() + '/view'
-    };
-  });
-
-  const exactGroups = {};
-  items.forEach(it => {
-    const normalizedName = String(it.fileName || '').replace(/\.[^.]+$/,'').replace(/\s|_|-|\(|\)|（|）/g,'').toLowerCase();
-    const key = it.fileSize + '::' + normalizedName;
-    (exactGroups[key] || (exactGroups[key] = [])).push(it);
-  });
-  const sizeGroups = {};
-  items.forEach(it => (sizeGroups[String(it.fileSize)] || (sizeGroups[String(it.fileSize)] = [])).push(it));
-
-  const headers = ['checkedAt','groupKey','reason','libraryName','drivePath','fileName','fileId','fileSize','mimeType','md5','url'];
-  const rows = [];
-  const seen = new Set();
-  Object.keys(exactGroups).forEach(key => {
-    if (exactGroups[key].length <= 1) return;
-    exactGroups[key].forEach(it => {
-      const unique = 'EXACT|' + key + '|' + it.fileId;
-      if (!seen.has(unique)) {
-        seen.add(unique);
-        rows.push([new Date(), key, '檔案大小＋近似檔名相同', it.libraryName, it.drivePath, it.fileName, it.fileId, it.fileSize, it.mimeType, '', it.url]);
-      }
-    });
-  });
-  Object.keys(sizeGroups).forEach(key => {
-    if (sizeGroups[key].length <= 1) return;
-    sizeGroups[key].forEach(it => {
-      const unique = 'SIZE|' + key + '|' + it.fileId;
-      if (!seen.has(unique)) {
-        seen.add(unique);
-        rows.push([new Date(), 'SIZE:' + key, '檔案大小相同，可能是改名重複圖', it.libraryName, it.drivePath, it.fileName, it.fileId, it.fileSize, it.mimeType, '', it.url]);
-      }
-    });
-  });
-
-  let report = ss.getSheetByName(CMS.sheets.duplicateReport || '重複照片檢查');
-  if (!report) report = ss.insertSheet(CMS.sheets.duplicateReport || '重複照片檢查');
-  report.clearContents();
-  report.getRange(1,1,2,headers.length).setValues([headers, headers.map(fieldLabel_)]);
-  if (rows.length) report.getRange(3,1,rows.length,headers.length).setValues(rows);
-  report.setFrozenRows(2);
-  report.getRange(1,1,1,headers.length).setBackground('#6bc2ba').setFontColor('#ffffff').setFontWeight('bold');
-  report.getRange(2,1,1,headers.length).setBackground('#e9f8f6').setFontWeight('bold');
-  SpreadsheetApp.flush();
-
-  return {
-    ok:true,
-    scanned:items.length,
-    duplicateRows:rows.length,
-    sheetName:report.getName(),
-    message:'檢查完成：' + lib.libraryName + ' 共掃描 ' + items.length + ' 個圖片，找到 ' + rows.length + ' 筆疑似重複紀錄。'
-  };
-}
-
 
 /* =========================================================
  * CMS v7.7.1｜GitHub WebP 圖片標準化
@@ -2766,58 +2961,7 @@ function githubArtworkImageUrls_(row) {
 }
 
 function migrateArtworkImagesToGithub() {
-  const ss = SpreadsheetApp.getActive();
-  const names = (typeof getArtworkLibrarySheetNames_ === 'function')
-    ? getArtworkLibrarySheetNames_()
-    : ['謝秀英作品庫', '收藏品作品庫', CMS.sheets.artworks];
-  const unique = [...new Set(names.filter(Boolean))];
-  let changed = 0;
-  const report = [];
-  unique.forEach(name => {
-    const sh = ss.getSheetByName(name);
-    if (!sh || sh.getLastRow() < 3) return;
-    const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(v => String(v || '').trim());
-    const col = key => headers.indexOf(key) + 1;
-    const idCol = col('artworkId') || col('id');
-    if (!idCol) return;
-    let fileCol = col('originalFileName');
-    let imageCol = col('imageUrl');
-    let thumbCol = col('thumbUrl');
-    // 欄位不存在時，安全地加在最右側，不移動既有資料。
-    [['originalFileName', fileCol], ['imageUrl', imageCol], ['thumbUrl', thumbCol]].forEach(pair => {
-      if (!pair[1]) {
-        sh.insertColumnAfter(sh.getLastColumn());
-        sh.getRange(1, sh.getLastColumn()).setValue(pair[0]);
-        headers.push(pair[0]);
-      }
-    });
-    fileCol = headers.indexOf('originalFileName') + 1;
-    imageCol = headers.indexOf('imageUrl') + 1;
-    thumbCol = headers.indexOf('thumbUrl') + 1;
-    const lastRow = sh.getLastRow();
-    const ids = sh.getRange(3, idCol, lastRow - 2, 1).getDisplayValues();
-    const files = [], images = [], thumbs = [];
-    const base = String(CMS.githubPagesBase || '').replace(/\/$/, '');
-    let sheetChanged = 0;
-    ids.forEach(([raw]) => {
-      const id = String(raw || '').trim().toUpperCase();
-      if (/^XH\d{4}$/.test(id)) {
-        files.push([id + '.webp']);
-        images.push([base + '/images/artworks/2400/' + id + '.webp']);
-        thumbs.push([base + '/images/artworks/1200/' + id + '.webp']);
-        sheetChanged++;
-      } else {
-        files.push(['']); images.push(['']); thumbs.push(['']);
-      }
-    });
-    sh.getRange(3, fileCol, files.length, 1).setValues(files);
-    sh.getRange(3, imageCol, images.length, 1).setValues(images);
-    sh.getRange(3, thumbCol, thumbs.length, 1).setValues(thumbs);
-    changed += sheetChanged;
-    report.push(name + '：' + sheetChanged + ' 筆');
-  });
-  CacheService.getScriptCache().removeAll(['v72a_all_artworks','v72b_admin_meta']);
-  SpreadsheetApp.getUi().alert('GitHub WebP 圖片欄位更新完成\n\n' + report.join('\n') + '\n\n合計：' + changed + ' 筆');
+  return openGithubImageLibraryPicker();
 }
 
 /* =========================================================
@@ -2826,7 +2970,7 @@ function migrateArtworkImagesToGithub() {
  * 縮圖欄：K 欄（第 11 欄），資料從第 3 列開始
  *
  * 使用方式：
- * 1. 試算表上方「謝秀英藝術館後台」→「開啟作品預覽」
+ * 1. 試算表上方「謝秀英藝術館後台」→「① 開啟作品預覽」
  * 2. 側欄保持開啟
  * 3. 點選 K3 之後的任一縮圖，側欄會自動更新
  * ========================================================= */
@@ -2959,6 +3103,8 @@ function getArtworkPreviewSelection() {
     CMS.githubPagesBase || 'https://siyuye.github.io/XieXiuYing1960'
   ).replace(/\/$/, '');
 
+  const cdnBase = 'https://cdn.jsdelivr.net/gh/siyuye/XieXiuYing1960@main';
+  const idPath = encodeURIComponent(artworkId) + '.webp';
   return {
     ok: true,
     row: row,
@@ -2968,8 +3114,11 @@ function getArtworkPreviewSelection() {
     year: year,
     size: size,
     typeName: typeName,
-    imageUrl: base + '/images/artworks/1200/' + encodeURIComponent(artworkId) + '.webp',
-    largeUrl: base + '/images/artworks/2400/' + encodeURIComponent(artworkId) + '.webp'
+    imageUrl: cdnBase + '/images/artworks/1200/' + idPath,
+    imageFallbackUrl: base + '/images/artworks/1200/' + idPath,
+    imagePlaceholderUrl: base + '/assets/images/art-placeholder-clean.svg',
+    largeUrl: cdnBase + '/images/artworks/2400/' + idPath,
+    largeFallbackUrl: base + '/images/artworks/2400/' + idPath
   };
 }
 
@@ -3149,13 +3298,20 @@ function getArtworkPreviewSidebarHtml_() {
         loading.style.display = 'none';
         image.style.display = 'block';
       };
+      const imageChain = [data.imageUrl, data.imageFallbackUrl, data.imagePlaceholderUrl].filter(Boolean);
+      let imageIndex = 0;
       image.onerror = function(){
+        imageIndex += 1;
+        if (imageIndex < imageChain.length) {
+          image.src = imageChain[imageIndex] + '?v=' + encodeURIComponent(data.artworkId);
+          return;
+        }
         image.style.display = 'none';
         loading.style.display = 'flex';
         loading.textContent = '圖片載入失敗';
       };
       image.alt = escapeText(data.titleZh || data.artworkId);
-      image.src = data.imageUrl + '?v=' + encodeURIComponent(data.artworkId);
+      image.src = imageChain[0] + '?v=' + encodeURIComponent(data.artworkId);
 
       const titleParts = [data.titleZh, data.titleEn].filter(Boolean);
       document.getElementById('title').textContent =
@@ -3167,7 +3323,9 @@ function getArtworkPreviewSidebarHtml_() {
       meta.style.display = metaParts.length ? 'block' : 'none';
 
       document.getElementById('artworkId').textContent = data.artworkId;
-      document.getElementById('openLarge').href = data.largeUrl;
+      const openLarge = document.getElementById('openLarge');
+      openLarge.href = data.largeUrl;
+      openLarge.dataset.fallbackUrl = data.largeFallbackUrl || '';
       document.getElementById('rowNote').textContent = '試算表第 ' + data.row + ' 列';
     }
 

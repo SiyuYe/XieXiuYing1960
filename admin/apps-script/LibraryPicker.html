@@ -14,53 +14,54 @@
   </style>
 </head>
 <body>
-  <h2><?= mode === 'duplicate' ? '檢查重複照片' : '同步 Google Drive 作品' ?></h2>
-  <p class="hint">資料來源完全依照「作品庫管理」分頁。一次只處理一個作品庫，避免掃描所有資料夾造成等待過久。</p>
-  <label for="library">選擇作品庫</label>
+  <h2><?= mode === 'cdn' ? '增加 CDN 圖片網址' : '更新 GitHub WebP 網址' ?></h2>
+  <p class="hint">清單直接讀取「作品庫管理」分頁的 sheetName 欄，自第 3 列開始。一次只更新一個作品庫分頁。</p>
+  <label for="library">選擇要更新的作品庫</label>
   <select id="library"></select>
   <div id="info" class="info"></div>
   <div id="status" class="status"></div>
   <div class="actions">
     <button class="cancel" onclick="google.script.host.close()">取消</button>
-    <button id="run" class="run" onclick="runAction()"><?= mode === 'duplicate' ? '開始檢查' : '開始同步' ?></button>
+    <button id="run" class="run" onclick="runAction()"><?= mode === 'cdn' ? '增加 CDN 網址' : '更新 GitHub 網址' ?></button>
   </div>
 <script>
-const MODE = <?!= JSON.stringify(mode) ?>;
-const LIBRARIES = <?!= librariesJson ?>;
-const select = document.getElementById('library');
-const info = document.getElementById('info');
-const status = document.getElementById('status');
-const runBtn = document.getElementById('run');
-LIBRARIES.forEach(lib => {
-  const option = document.createElement('option');
-  option.value = lib.libraryId;
-  option.textContent = `${lib.libraryName}${lib.authorName ? '｜' + lib.authorName : ''}${lib.ready ? '' : '（設定未完成）'}`;
+var MODE = <?!= JSON.stringify(mode) ?>;
+var LIBRARIES = <?!= librariesJson ?>;
+var select = document.getElementById('library');
+var info = document.getElementById('info');
+var status = document.getElementById('status');
+var runBtn = document.getElementById('run');
+LIBRARIES.forEach(function(lib){
+  var option = document.createElement('option');
+  option.value = lib.sheetName;
+  option.textContent = lib.libraryName + '｜' + lib.sheetName + (lib.ready ? '' : '（找不到分頁）');
   option.disabled = !lib.ready;
   select.appendChild(option);
 });
 function updateInfo(){
-  const lib = LIBRARIES.find(x => x.libraryId === select.value) || LIBRARIES[0];
+  var lib = null;
+  for(var i=0;i<LIBRARIES.length;i++){if(LIBRARIES[i].sheetName===select.value){lib=LIBRARIES[i];break;}}
   if(!lib){info.textContent='沒有可用作品庫';runBtn.disabled=true;return;}
-  info.innerHTML = `<b>${escapeHtml(lib.libraryName)}</b><br>作品庫分頁：${escapeHtml(lib.sheetName)}<br>Drive：${lib.driveFolderId ? '已設定' : '尚未設定'}`;
+  info.innerHTML = '<b>' + escapeHtml(lib.libraryName) + '</b><br>作品庫分頁：' + escapeHtml(lib.sheetName) + '<br>來源列：作品庫管理第 ' + lib.rowNumber + ' 列';
   runBtn.disabled = !lib.ready;
 }
-function escapeHtml(v){return String(v||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+function escapeHtml(v){return String(v||'').replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];});}
 function runAction(){
-  const id = select.value;
-  if(!id)return;
+  var sheetName = select.value;
+  if(!sheetName)return;
   runBtn.disabled=true;select.disabled=true;status.className='status';
-  status.textContent = MODE === 'duplicate' ? '正在檢查，請勿關閉視窗…' : '正在同步，請勿關閉視窗…';
+  status.textContent = MODE === 'cdn' ? '正在增加 CDN 網址，請勿關閉視窗…' : '正在更新 GitHub 網址，請勿關閉視窗…';
   google.script.run
-    .withSuccessHandler(result => {
+    .withSuccessHandler(function(result){
       status.className='status ok';status.textContent=result.message || '完成';
       runBtn.textContent='完成';
-      setTimeout(()=>google.script.host.close(),1800);
+      setTimeout(function(){google.script.host.close();},1800);
     })
-    .withFailureHandler(err => {
+    .withFailureHandler(function(err){
       status.className='status error';status.textContent='失敗：' + (err && err.message ? err.message : err);
       runBtn.disabled=false;select.disabled=false;
     })
-    .runArtworkLibraryAction(MODE,id);
+    .runArtworkLibraryAction(MODE,sheetName);
 }
 select.addEventListener('change',updateInfo);updateInfo();
 </script>

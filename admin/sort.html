@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>統一排序中心｜CMS v7.3-C</title>
-<link rel="stylesheet" href="../style.css"><link rel="stylesheet" href="admin.css">
+<link rel="stylesheet" href="../style.css?v=7909c"><link rel="stylesheet" href="admin.css">
 </head>
 <body class="admin-page">
 <main class="admin-wide sort-center-page">
@@ -24,22 +24,23 @@
 <p id="sortMessage" class="admin-status">讀取中…</p>
 <section id="sortList" class="sort-list" aria-live="polite"></section>
 </main>
-<script src="../api/cms.js"></script><script src="auth-guard.js"></script>
+<script src="../api/cms.js?v=7909c"></script><script src="admin-images.js?v=7909c"></script><script src="auth-guard.js"></script>
 <script>
 const list=document.getElementById('sortList'),msg=document.getElementById('sortMessage'),saveBtn=document.getElementById('saveSort');
 let section='homeHero', items=[], dragging=null, dirty=false;
 function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
-let imageManifest={artworks:{}};function normalizeArtworkId(a){return String(a?.artworkId||a?.id||'').trim().toUpperCase();}function img(a){const id=normalizeArtworkId(a);return /^XH\d{4}$/.test(id)?`../images/artworks/1200/${id}.webp`:'../assets/images/art-placeholder-1.svg';}async function loadImageManifest(){try{const r=await fetch('../data/images-manifest.json?v=cms-v7.7.1-github-images',{cache:'force-cache'});if(r.ok)imageManifest=await r.json();}catch(_){}}
+function img(a){return XxyAdminImages.primary(a,'thumb');}
 function render(){
   document.getElementById('sortCount').textContent=`共 ${items.length} 件`;
   list.innerHTML=items.length?items.map((a,i)=>`<article class="sort-item" draggable="true" data-id="${esc(a.artworkId)}">
     <button class="drag-handle" type="button" title="拖曳排序" aria-label="拖曳排序">☰</button>
     <span class="sort-number">${i+1}</span>
-    <img src="${esc(img(a))}" loading="lazy" decoding="async" alt="">
+    <img src="${esc(img(a))}" data-admin-sort-index="${i}" loading="lazy" decoding="async" alt="">
     <div class="sort-copy"><strong>${esc(a.titleZh||'未命名作品')}</strong><small>${esc(a.artworkId)}｜${esc(a.artistName||'')}</small></div>
     <div class="sort-moves"><button type="button" data-move="up" aria-label="往上">↑</button><button type="button" data-move="down" aria-label="往下">↓</button></div>
   </article>`).join(''):'<div class="sort-empty">目前沒有已勾選的作品。請先到「作品管理」勾選此展示區。</div>';
   saveBtn.disabled=!dirty||!items.length;
+  items.forEach((a,i)=>{const el=list.querySelector('[data-admin-sort-index="'+i+'"]');if(el)XxyAdminImages.configure(el,a,'thumb');});
 }
 async function load(sec){
   section=sec;dirty=false;saveBtn.disabled=true;msg.textContent='讀取中…';list.innerHTML='';
@@ -55,6 +56,6 @@ list.addEventListener('dragover',e=>{e.preventDefault();const over=e.target.clos
 document.querySelectorAll('.sort-tab').forEach(b=>b.onclick=()=>{if(dirty&&!confirm('尚未儲存排序，確定切換嗎？'))return;load(b.dataset.section);});
 saveBtn.onclick=async()=>{saveBtn.disabled=true;msg.textContent='儲存中…';try{const res=await XxyCms.saveDisplayOrder(section,items.map(x=>x.artworkId));dirty=false;msg.textContent=res.message||'已儲存排序';render();}catch(e){msg.innerHTML='<span class="error">儲存失敗：'+esc(e.message)+'</span>';saveBtn.disabled=false;}};
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
-XxyAdminReady.then(async()=>{await loadImageManifest();load(section);});
+XxyAdminReady.then(()=>load(section));
 </script>
 </body></html>
