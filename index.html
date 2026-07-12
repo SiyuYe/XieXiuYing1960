@@ -9,7 +9,7 @@
   <link rel="icon" href="favicon.ico" /><link rel="manifest" href="manifest.json" />
   <link rel="preload" as="image" href="images/yingphoto/1600/xiexiuying001.webp" fetchpriority="high" />
   <link rel="preload" as="image" href="images/artworks/1200/XH0001.webp" fetchpriority="high" />
-  <link rel="preload" as="image" href="assets/images/header-banner.webp" fetchpriority="high"><link rel="stylesheet" href="style.css" />
+  <link rel="preload" as="image" href="assets/images/header-banner.webp" fetchpriority="high"><link rel="stylesheet" href="style.css?v=785" />
 </head>
 <body data-page="home">
   <header class="topbar museum-header" id="top">
@@ -48,18 +48,14 @@
         </div>
       </div>
       <div class="hero-art protected-image reveal visible" data-watermark="謝秀英 Xie Xiu-Ying">
-        <button class="slider-btn prev" aria-label="上一張">‹</button><img id="heroImage" src="assets/images/art-placeholder-clean.svg" alt="謝秀英精選作品" draggable="false" /><button class="slider-btn next" aria-label="下一張">›</button>
+        <button class="slider-btn prev" aria-label="上一張">‹</button><img id="heroImage" src="images/artworks/1200/XH0001.webp" alt="謝秀英精選作品" draggable="false" /><button class="slider-btn next" aria-label="下一張">›</button>
         <div class="slide-caption"><strong id="heroTitle"></strong><small id="heroMeta"></small></div>
       </div>
     </section>
 
     <section id="news" class="home-block section-snap reveal">
       <div class="section-heading"><p>News</p><h2>近期公告</h2></div>
-      <div class="news-grid">
-        <article><time>2026</time><h3>線上藝術館骨架建置</h3><p>作品、簡歷、展覽資料將陸續整理成可長期維護的數位藝廊。</p></article>
-        <article><time>近期</time><h3>本期線上展規劃中</h3><p>可依季節、師生展、全新作品或主題展，定期替換首頁主打內容。</p></article>
-        <article><time>最新</time><h3>Facebook 粉專同步</h3><p>粉專連結已加入，正式上線後可嵌入最新貼文或活動訊息。</p></article>
-      </div>
+      <div class="news-grid"><p class="page-loading">讀取中…</p></div>
     </section>
 
     <section id="online-show" class="home-block show-card section-snap reveal">
@@ -68,7 +64,12 @@
 
     <section id="featured" class="home-block section-snap reveal">
       <div class="section-heading"><p>Featured</p><h2>本月精選作品</h2><span>手機可左右滑動瀏覽。</span></div>
-      <div class="horizontal-art" id="featuredWorks"></div>
+      <div class="horizontal-art" id="featuredWorks">
+        <button class="art-card protected-image" type="button"><img src="images/artworks/1200/XH0001.webp" alt="謝秀英作品" loading="eager" decoding="async" width="1200" height="1200"><div class="art-info"></div></button>
+        <button class="art-card protected-image" type="button"><img src="images/artworks/1200/XH0002.webp" alt="謝秀英作品" loading="lazy" decoding="async" width="1200" height="1200"><div class="art-info"></div></button>
+        <button class="art-card protected-image" type="button"><img src="images/artworks/1200/XH0003.webp" alt="謝秀英作品" loading="lazy" decoding="async" width="1200" height="1200"><div class="art-info"></div></button>
+        <button class="art-card protected-image" type="button"><img src="images/artworks/1200/XH0004.webp" alt="謝秀英作品" loading="lazy" decoding="async" width="1200" height="1200"><div class="art-info"></div></button>
+      </div>
     </section>
 
     <section id="quote" class="quote-card section-snap reveal"><p>「一花一草皆佛性，昆蟲飛鳥皆如來。」</p><span>謝秀英　無心居士合十</span></section>
@@ -78,7 +79,7 @@
       <div id="facebookPosts" class="fb-post-carousel" aria-label="Facebook 最新貼文"></div>
     </section>
   </main>
-  <button class="to-top" aria-label="回到頂端">↑</button><script src="api/cms.js"></script>
-<script src="app.js"></script>
+  <button class="to-top" aria-label="回到頂端">↑</button><script src="api/cms.js?v=785"></script>
+<script src="app.js?v=785"></script>
 </body>
 </html>

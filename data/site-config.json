@@ -1,5 +1,5 @@
 {
-  "version": "cms-v7.0",
+  "version": "cms-v7.8.5",
   "backendMode": "appsScript",
   "appsScriptApiUrl": "",
   "brand": {
@@ -84,5 +84,5 @@
   ],
   "adminWriteToken": "",
   "note": "appsScriptApiUrl 可在 admin/settings.html 設定；正式上線也可直接填在此檔。",
-  "showNotice": true
+  "showNotice": false
 }

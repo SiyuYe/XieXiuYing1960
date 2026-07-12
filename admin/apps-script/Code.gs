@@ -2406,6 +2406,7 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('謝秀英藝術館後台')
     .addItem('開啟 CMS 管理面板', 'openCmsAdmin')
+    .addItem('開啟作品預覽', 'openArtworkPreviewSidebar')
     .addSeparator()
     .addItem('從 Google Drive 同步指定作品庫', 'syncDriveArtworks')
     .addItem('檢查指定作品庫重複照片', 'scanDuplicateArtworkFiles')
@@ -2817,4 +2818,362 @@ function migrateArtworkImagesToGithub() {
   });
   CacheService.getScriptCache().removeAll(['v72a_all_artworks','v72b_admin_meta']);
   SpreadsheetApp.getUi().alert('GitHub WebP 圖片欄位更新完成\n\n' + report.join('\n') + '\n\n合計：' + changed + ' 筆');
+}
+
+/* =========================================================
+ * 作品庫固定側欄預覽
+ * 工作表：謝秀英作品庫
+ * 縮圖欄：K 欄（第 11 欄），資料從第 3 列開始
+ *
+ * 使用方式：
+ * 1. 試算表上方「謝秀英藝術館後台」→「開啟作品預覽」
+ * 2. 側欄保持開啟
+ * 3. 點選 K3 之後的任一縮圖，側欄會自動更新
+ * ========================================================= */
+
+const ARTWORK_PREVIEW = {
+  sheetName: '謝秀英作品庫',
+  firstDataRow: 3,
+  thumbnailColumn: 11, // K
+  artworkIdColumn: 2,  // B
+  titleZhColumn: 7,    // G
+  titleEnColumn: 8,    // H
+  yearColumn: 9,       // I
+  sizeColumn: 10,      // J
+  typeNameColumn: 13,  // M
+  cacheKey: 'xxy_artwork_preview_selection_v1'
+};
+
+/**
+ * 從試算表選單手動開啟固定作品預覽側欄。
+ */
+function openArtworkPreviewSidebar() {
+  const html = HtmlService.createHtmlOutput(getArtworkPreviewSidebarHtml_())
+    .setTitle('作品預覽');
+  SpreadsheetApp.getUi().showSidebar(html);
+}
+
+/**
+ * 只記錄使用者目前點選的縮圖列。
+ * Simple Trigger 不直接開側欄，避免 Google 權限限制。
+ */
+function onSelectionChange(e) {
+  try {
+    if (!e || !e.range) return;
+
+    const range = e.range;
+    const sheet = range.getSheet();
+    if (sheet.getName() !== ARTWORK_PREVIEW.sheetName) return;
+    if (range.getRow() < ARTWORK_PREVIEW.firstDataRow) return;
+    if (range.getColumn() !== ARTWORK_PREVIEW.thumbnailColumn) return;
+
+    const row = range.getRow();
+    const artworkId = String(
+      sheet.getRange(row, ARTWORK_PREVIEW.artworkIdColumn).getDisplayValue() || ''
+    ).trim().toUpperCase();
+
+    if (!artworkId) return;
+
+    CacheService.getUserCache().put(
+      ARTWORK_PREVIEW.cacheKey,
+      JSON.stringify({
+        sheetName: sheet.getName(),
+        row: row,
+        artworkId: artworkId,
+        updatedAt: Date.now()
+      }),
+      21600
+    );
+  } catch (error) {
+    console.error('記錄作品預覽選取失敗：' + error);
+  }
+}
+
+/**
+ * 側欄定時呼叫，取得目前應顯示的作品資料。
+ */
+function getArtworkPreviewSelection() {
+  const ss = SpreadsheetApp.getActive();
+  let sheet = ss.getSheetByName(ARTWORK_PREVIEW.sheetName);
+  if (!sheet) {
+    return { ok: false, message: '找不到「' + ARTWORK_PREVIEW.sheetName + '」分頁。' };
+  }
+
+  let row = 0;
+  const cached = CacheService.getUserCache().get(ARTWORK_PREVIEW.cacheKey);
+
+  if (cached) {
+    try {
+      const data = JSON.parse(cached);
+      if (data.sheetName === ARTWORK_PREVIEW.sheetName) {
+        row = Number(data.row) || 0;
+      }
+    } catch (ignore) {}
+  }
+
+  // 第一次開啟側欄時，若尚未點縮圖，就讀目前選取的儲存格。
+  if (row < ARTWORK_PREVIEW.firstDataRow) {
+    const activeRange = sheet.getActiveRange();
+    if (
+      activeRange &&
+      activeRange.getRow() >= ARTWORK_PREVIEW.firstDataRow &&
+      activeRange.getColumn() === ARTWORK_PREVIEW.thumbnailColumn
+    ) {
+      row = activeRange.getRow();
+    }
+  }
+
+  if (row < ARTWORK_PREVIEW.firstDataRow) {
+    return {
+      ok: false,
+      waiting: true,
+      message: '請點選 K 欄的作品縮圖。'
+    };
+  }
+
+  const artworkId = String(
+    sheet.getRange(row, ARTWORK_PREVIEW.artworkIdColumn).getDisplayValue() || ''
+  ).trim().toUpperCase();
+
+  if (!artworkId) {
+    return { ok: false, message: '這一列沒有作品編號。' };
+  }
+
+  const titleZh = String(
+    sheet.getRange(row, ARTWORK_PREVIEW.titleZhColumn).getDisplayValue() || ''
+  ).trim();
+  const titleEn = String(
+    sheet.getRange(row, ARTWORK_PREVIEW.titleEnColumn).getDisplayValue() || ''
+  ).trim();
+  const year = String(
+    sheet.getRange(row, ARTWORK_PREVIEW.yearColumn).getDisplayValue() || ''
+  ).trim();
+  const size = String(
+    sheet.getRange(row, ARTWORK_PREVIEW.sizeColumn).getDisplayValue() || ''
+  ).trim();
+  const typeName = String(
+    sheet.getRange(row, ARTWORK_PREVIEW.typeNameColumn).getDisplayValue() || ''
+  ).trim();
+
+  const base = String(
+    CMS.githubPagesBase || 'https://siyuye.github.io/XieXiuYing1960'
+  ).replace(/\/$/, '');
+
+  return {
+    ok: true,
+    row: row,
+    artworkId: artworkId,
+    titleZh: titleZh,
+    titleEn: titleEn,
+    year: year,
+    size: size,
+    typeName: typeName,
+    imageUrl: base + '/images/artworks/1200/' + encodeURIComponent(artworkId) + '.webp',
+    largeUrl: base + '/images/artworks/2400/' + encodeURIComponent(artworkId) + '.webp'
+  };
+}
+
+/**
+ * 側欄 HTML。內嵌在 Code.gs，無須另外建立 HTML 檔案。
+ */
+function getArtworkPreviewSidebarHtml_() {
+  return `<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <base target="_blank">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root{
+      --ink:#173a37;
+      --muted:#6d8582;
+      --line:#d7e7e4;
+      --accent:#58b5ac;
+      --paper:#f7fbfa;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      padding:12px;
+      background:var(--paper);
+      color:var(--ink);
+      font-family:Arial,"Noto Sans TC","Microsoft JhengHei",sans-serif;
+    }
+    .status{
+      min-height:52px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.7;
+      padding:12px;
+    }
+    .card{
+      display:none;
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:12px;
+      box-shadow:0 10px 28px rgba(24,71,66,.10);
+    }
+    .image-wrap{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      min-height:260px;
+      background:#eef5f3;
+      border-radius:14px;
+      overflow:hidden;
+      position:relative;
+    }
+    .image-wrap img{
+      display:block;
+      max-width:100%;
+      max-height:66vh;
+      width:auto;
+      height:auto;
+      object-fit:contain;
+    }
+    .loading{
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:var(--muted);
+      font-size:13px;
+      background:#eef5f3;
+    }
+    h2{
+      font-size:19px;
+      line-height:1.45;
+      margin:14px 2px 4px;
+      word-break:break-word;
+    }
+    .meta{
+      font-size:14px;
+      line-height:1.7;
+      color:var(--muted);
+      margin:0 2px 8px;
+    }
+    .id{
+      font-size:12px;
+      letter-spacing:.08em;
+      color:#4b9d95;
+      margin:0 2px 12px;
+    }
+    .open{
+      display:block;
+      text-align:center;
+      text-decoration:none;
+      color:#fff;
+      background:var(--accent);
+      border-radius:999px;
+      padding:10px 14px;
+      font-weight:700;
+    }
+    .row-note{
+      margin:9px 0 0;
+      text-align:center;
+      color:#8a9d9a;
+      font-size:11px;
+    }
+  </style>
+</head>
+<body>
+  <div id="status" class="status">請點選 K 欄的作品縮圖。</div>
+
+  <div id="card" class="card">
+    <div class="image-wrap">
+      <div id="loading" class="loading">圖片載入中…</div>
+      <img id="artworkImage" alt="">
+    </div>
+    <h2 id="title"></h2>
+    <p id="meta" class="meta"></p>
+    <p id="artworkId" class="id"></p>
+    <a id="openLarge" class="open" href="#">開啟 2400px 大圖</a>
+    <p id="rowNote" class="row-note"></p>
+  </div>
+
+  <script>
+    let lastKey = '';
+    let timer = null;
+    let busy = false;
+
+    function escapeText(value){
+      return String(value == null ? '' : value);
+    }
+
+    function poll(){
+      if (busy) return;
+      busy = true;
+
+      google.script.run
+        .withSuccessHandler(render)
+        .withFailureHandler(function(error){
+          busy = false;
+          document.getElementById('card').style.display = 'none';
+          const status = document.getElementById('status');
+          status.style.display = 'flex';
+          status.textContent = '預覽讀取失敗：' + (error && error.message ? error.message : error);
+        })
+        .getArtworkPreviewSelection();
+    }
+
+    function render(data){
+      busy = false;
+
+      if (!data || !data.ok) {
+        document.getElementById('card').style.display = 'none';
+        const status = document.getElementById('status');
+        status.style.display = 'flex';
+        status.textContent = data && data.message ? data.message : '請點選 K 欄的作品縮圖。';
+        return;
+      }
+
+      const key = data.artworkId + ':' + data.row;
+      if (key === lastKey) return;
+      lastKey = key;
+
+      document.getElementById('status').style.display = 'none';
+      document.getElementById('card').style.display = 'block';
+
+      const image = document.getElementById('artworkImage');
+      const loading = document.getElementById('loading');
+      loading.style.display = 'flex';
+      loading.textContent = '圖片載入中…';
+      image.style.display = 'none';
+
+      image.onload = function(){
+        loading.style.display = 'none';
+        image.style.display = 'block';
+      };
+      image.onerror = function(){
+        image.style.display = 'none';
+        loading.style.display = 'flex';
+        loading.textContent = '圖片載入失敗';
+      };
+      image.alt = escapeText(data.titleZh || data.artworkId);
+      image.src = data.imageUrl + '?v=' + encodeURIComponent(data.artworkId);
+
+      const titleParts = [data.titleZh, data.titleEn].filter(Boolean);
+      document.getElementById('title').textContent =
+        titleParts.length ? titleParts.join('｜') : data.artworkId;
+
+      const metaParts = [data.year, data.size, data.typeName].filter(Boolean);
+      const meta = document.getElementById('meta');
+      meta.textContent = metaParts.join('｜');
+      meta.style.display = metaParts.length ? 'block' : 'none';
+
+      document.getElementById('artworkId').textContent = data.artworkId;
+      document.getElementById('openLarge').href = data.largeUrl;
+      document.getElementById('rowNote').textContent = '試算表第 ' + data.row + ' 列';
+    }
+
+    poll();
+    timer = setInterval(poll, 900);
+  </script>
+</body>
+</html>`;
 }

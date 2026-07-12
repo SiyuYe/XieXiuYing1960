@@ -1,5 +1,5 @@
 // 謝秀英藝術館 CMS v7.5
-const DATA_VERSION='cms-v7.8.1-gallery-fix';
+const DATA_VERSION='cms-v7.8.5-fast-static';
 const LOCAL_FILES={config:'data/site-config.json',home:'data/home.json',pages:'data/pages.json',artworks:'data/artworks.json',exhibitions:'data/exhibitions.json'};
 let siteConfig=null,homeData=null,pageData=null,artworks=[],exhibitions=[],historyItems=[],books=[],galleryShows=[],imageManifest={artworks:{},artworkOrder:[],teacherPhotos:{1600:['images/yingphoto/1600/xiexiuying001.webp'],600:['images/yingphoto/600/xiexiuying001.webp']}};
 let heroTimer=null,uiEffectsReady=false;
@@ -173,5 +173,5 @@ function initNavProgress(){
  addEventListener('pageshow',()=>setTimeout(()=>{centerActive('auto');updateEdges();},30),{once:true});
  requestAnimationFrame(()=>{centerActive('auto');updateEdges();});
 }
-function initUiEffects(){const io=new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting&&e.target.classList.add('visible')),{threshold:.1});document.querySelectorAll('.reveal').forEach(e=>io.observe(e));const top=document.querySelector('.to-top');if(top){addEventListener('scroll',()=>top.classList.toggle('show',scrollY>500));top.onclick=()=>scrollTo({top:0,behavior:'smooth'});}initNavProgress();}
-document.addEventListener('contextmenu',e=>e.preventDefault());document.addEventListener('dragstart',e=>e.preventDefault());initData();if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(()=>{}));
+function initUiEffects(){const reveals=[...document.querySelectorAll('.reveal')];if('IntersectionObserver'in window){const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');io.unobserve(e.target);}}),{threshold:.05,rootMargin:'120px'});reveals.forEach(e=>io.observe(e));}else{reveals.forEach(e=>e.classList.add('visible'));}const top=document.querySelector('.to-top');if(top){addEventListener('scroll',()=>top.classList.toggle('show',scrollY>500),{passive:true});top.onclick=()=>scrollTo({top:0,behavior:'smooth'});}initNavProgress();}
+document.addEventListener('contextmenu',e=>e.preventDefault());document.addEventListener('dragstart',e=>e.preventDefault());initData();if('serviceWorker'in navigator){addEventListener('load',()=>{navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.unregister()))).catch(()=>{});if('caches'in window)caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('xxy-')).map(k=>caches.delete(k)))).catch(()=>{});},{once:true});}
