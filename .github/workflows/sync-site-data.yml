@@ -49,6 +49,12 @@ jobs:
             data/site-data.json \
             data/site-version.json
 
+      - name: Update sitemap last modified date
+        run: |
+          python3 scripts/update_sitemap.py \
+            sitemap.xml \
+            "${{ steps.site_data.outputs.published_at }}"
+
       - name: Show validation summary
         run: |
           echo "狀態：${{ steps.site_data.outputs.status }}"
@@ -62,6 +68,6 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/site-data.json data/site-version.json
+          git add data/site-data.json data/site-version.json sitemap.xml
           git commit -m "chore: publish website data ${{ steps.site_data.outputs.data_version }}"
           git push

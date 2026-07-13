@@ -1,11 +1,11 @@
 {
-  "name": "謝秀英藝術館 CMS_V7_5",
-  "short_name": "謝秀英",
-  "start_url": "./index.html",
+  "name": "謝秀英書畫藝術館",
+  "short_name": "謝秀英藝術館",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#f0f8f8",
   "theme_color": "#6bc2ba",
-  "description": "謝秀英書畫藝術館 PWA",
+  "description": "畫家謝秀英官方書畫藝術館，展示工筆、膠彩、寫意、書法與歷年展覽作品。",
   "icons": [
     {
       "src": "assets/icons/icon-192.png",
@@ -17,5 +17,14 @@
       "sizes": "512x512",
       "type": "image/png"
     }
+  ],
+  "id": "./",
+  "scope": "./",
+  "lang": "zh-Hant",
+  "dir": "ltr",
+  "categories": [
+    "art",
+    "education",
+    "lifestyle"
   ]
 }
