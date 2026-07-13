@@ -534,7 +534,10 @@ function shuffle(list) {
 function valueList(a) { return [a.artworkTypeName || a.categoryZh, a.subjectNames, a.material, a.medium].filter(function (v) { return String(v || '').trim(); }); }
 function titleLines(a) { return [a.titleZh, a.titleEn].filter(function (v) { return String(v || '').trim(); }); }
 function infoLines(a) { return [[a.year, a.size].filter(function (v) { return String(v || '').trim(); }).join('｜'), valueList(a).join('｜')].filter(Boolean); }
-function heroCaptionLines(a) { var first = [a.titleZh, a.titleEn, [a.year, a.size].filter(function (v) { return String(v || '').trim(); }).join(' ')].filter(function (v) { return String(v || '').trim(); }).join('｜'); var second = valueList(a).join('｜'); return [first, second].filter(Boolean); }
+function homePrimaryParts(a) { return [a.titleZh, a.titleEn, a.year, a.size].filter(function (v) { return String(v || '').trim(); }); }
+function homePrimaryHtml(a) { var nameCount = [a.titleZh, a.titleEn].filter(function (v) { return String(v || '').trim(); }).length; return homePrimaryParts(a).map(function (v, i) { var cls = i < nameCount ? 'home-art-name' : 'home-art-detail'; return "".concat(i ? '<span class=\"home-art-separator\">｜</span>' : '', "<span class=\"").concat(cls, "\">").concat(esc(v), "</span>"); }).join(''); }
+function homeArtInfoHtml(a) { var second = valueList(a).join('｜'); return "<div class=\"art-info home-art-info\"><div class=\"home-art-primary\">".concat(homePrimaryHtml(a), "</div>").concat(second ? "<small>".concat(esc(second), "</small>") : '', "</div>"); }
+function heroCaptionLines(a) { return [homePrimaryParts(a).join('｜'), valueList(a).join('｜')].filter(Boolean); }
 function artTitle(a) { return a.titleZh || a.titleEn || ''; }
 function imgSrc(a) { return artworkImageSources_(a, '1200').primary; }
 function imgLargeSrc(a) { return artworkImageSources_(a, '2400').primary; }
@@ -805,7 +808,7 @@ function initArtSections() {
             t_1.textContent = '';
             m_1.textContent = '';
             return;
-        } image.src = imgSrc(a); var lines = heroCaptionLines(a); t_1.textContent = lines[0] || ''; m_1.textContent = lines[1] || ''; preloadHeroNeighbors_(heroPool, slide_1); }
+        } image.src = imgSrc(a); t_1.innerHTML = homePrimaryHtml(a); m_1.textContent = valueList(a).join('｜'); preloadHeroNeighbors_(heroPool, slide_1); }
         (_a = document.querySelector('.next')) === null || _a === void 0 ? void 0 : _a.addEventListener('click', function () { slide_1 = (slide_1 + 1) % heroPool.length; draw(); });
         (_b = document.querySelector('.prev')) === null || _b === void 0 ? void 0 : _b.addEventListener('click', function () { slide_1 = (slide_1 - 1 + heroPool.length) % heroPool.length; draw(); });
         draw();
@@ -814,7 +817,7 @@ function initArtSections() {
     }
     var featured = document.querySelector('#featuredWorks');
     if (featured)
-        featured.innerHTML = feat.slice(0, 8).map(function (a, i) { return card(a, i); }).join('');
+        featured.innerHTML = feat.slice(0, 8).map(function (a, i) { var first = i === 0, sources = artworkImageSources_(a, '1200'); return "<button class=\"art-card protected-image\" type=\"button\" data-watermark=\"謝秀英\" data-art-id=\"".concat(esc(a.id || a.artworkId || ''), "\"><img src=\"").concat(esc(sources.primary), "\" ").concat(imageFallbackAttrs_(sources), " alt=\"").concat(esc(artTitle(a) || '謝秀英作品'), "\" draggable=\"false\" loading=\"").concat(first ? 'eager' : 'lazy', "\" decoding=\"async\" fetchpriority=\"").concat(first ? 'high' : 'low', "\" width=\"1200\" height=\"1200\">").concat(homeArtInfoHtml(a), "</button>"); }).join('');
     var gallery = document.querySelector('#galleryGrid');
     if (gallery)
         renderPagedArtGrid_(gallery, shuffle(artworks.filter(function (a) { return a.gallery === true || truth(a.isGallery); })), '目前尚無公開線上藝廊作品。');

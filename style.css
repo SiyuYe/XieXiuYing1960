@@ -395,3 +395,44 @@ body[data-page="home"] #featuredWorks .art-card .art-info small{
   body[data-page="home"] #featuredWorks .art-card .art-info span,
   body[data-page="home"] #featuredWorks .art-card .art-info small{font-size:12px}
 }
+
+/* 首頁作品資訊：名稱與年份／尺寸同列，但維持原本字級與顏色層級 */
+body[data-page="home"] .home-art-primary{
+  display:flex;
+  align-items:baseline;
+  flex-wrap:wrap;
+  min-width:0;
+}
+body[data-page="home"] .home-art-name{
+  font:inherit;
+  font-weight:700;
+  color:var(--ink);
+}
+body[data-page="home"] .home-art-detail,
+body[data-page="home"] .home-art-separator{
+  font-size:.76em;
+  font-weight:400;
+  color:var(--muted);
+}
+body[data-page="home"] .slide-caption > strong .home-art-name{
+  font-size:inherit;
+}
+body[data-page="home"] .slide-caption > strong .home-art-detail,
+body[data-page="home"] .slide-caption > strong .home-art-separator{
+  font-size:.76em;
+}
+body[data-page="home"] #featuredWorks .home-art-primary{
+  line-height:1.08;
+}
+body[data-page="home"] #featuredWorks .home-art-name{
+  font-size:17px;
+}
+body[data-page="home"] #featuredWorks .home-art-detail,
+body[data-page="home"] #featuredWorks .home-art-separator{
+  font-size:13px;
+}
+@media(max-width:620px){
+  body[data-page="home"] #featuredWorks .home-art-name{font-size:16px}
+  body[data-page="home"] #featuredWorks .home-art-detail,
+  body[data-page="home"] #featuredWorks .home-art-separator{font-size:12px}
+}
