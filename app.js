@@ -45,22 +45,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-var __read = (this && this.__read) || function (o, n) {
-    var m = typeof Symbol === "function" && o[Symbol.iterator];
-    if (!m) return o;
-    var i = m.call(o), r, ar = [], e;
-    try {
-        while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
-    }
-    catch (error) { e = { error: error }; }
-    finally {
-        try {
-            if (r && !r.done && (m = i["return"])) m.call(i);
-        }
-        finally { if (e) throw e.error; }
-    }
-    return ar;
-};
 var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
         if (ar || !(i in from)) {
@@ -79,6 +63,10 @@ var GITHUB_PAGES_BASE = 'https://siyuye.github.io/XieXiuYing1960/';
 var CLIENT_ERROR_LOG_KEY = 'xxy.clientErrors.v7909b';
 var JSON_TIMEOUT_MS = 12000;
 var SITE_DATA_FILE = 'data/site-data.json';
+var SITE_VERSION_FILE = 'data/site-version.json';
+var SITE_DATA_CACHE_PREFIX = 'xxy.siteData.';
+var SITE_DATA_CURRENT_VERSION_KEY = 'xxy.siteData.currentVersion';
+var SITE_VERSION_CACHE_KEY = 'xxy.siteVersion.latest';
 var siteConfig = null, homeData = null, pageData = null, artworks = [], exhibitions = [], historyItems = [], books = [], galleryShows = [], imageManifest = { artworks: {}, artworkOrder: [], teacherPhotos: { 1600: ['images/yingphoto/1600/xiexiuying001.webp'], 600: ['images/yingphoto/600/xiexiuying001.webp'] } };
 var ART_BATCH_SIZE = 16;
 var heroTimer = null, uiEffectsReady = false;
@@ -193,55 +181,167 @@ function createCompatSet_(initialValues) {
             values.push(value); return this; }
     };
 }
-function fetchJson(path) {
+function readJsonStorage_(key) {
+    try {
+        var raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : null;
+    }
+    catch (_) {
+        return null;
+    }
+}
+function writeJsonStorage_(key, value) {
+    try {
+        localStorage.setItem(key, JSON.stringify(value));
+    }
+    catch (_) { }
+}
+function siteDataCacheKey_(version) { return SITE_DATA_CACHE_PREFIX + String(version || 'unknown'); }
+function cleanupVersionedSiteDataCache_(keepVersion) {
+    try {
+        var keepKey = siteDataCacheKey_(keepVersion);
+        var remove = [];
+        for (var i = 0; i < localStorage.length; i++) {
+            var key = localStorage.key(i) || '';
+            if (key.indexOf(SITE_DATA_CACHE_PREFIX) === 0 && key !== keepKey && key !== SITE_DATA_CURRENT_VERSION_KEY)
+                remove.push(key);
+        }
+        remove.forEach(function (key) { localStorage.removeItem(key); });
+        localStorage.removeItem('xxy.static.' + SITE_DATA_FILE);
+    }
+    catch (err) {
+        rememberClientError_('site-data-cache-cleanup', err);
+    }
+}
+function fetchJsonRequest_(url, cacheMode) {
     return __awaiter(this, void 0, void 0, function () {
-        var key, supportsAbort, controller, timer, options, r, data, err_1, cached, message, wrapped;
+        var supportsAbort, controller, timer, options, response;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
-                    key = 'xxy.static.' + path;
                     supportsAbort = typeof window.AbortController === 'function';
                     controller = supportsAbort ? new window.AbortController() : null;
                     timer = null;
-                    if (controller) {
+                    if (controller)
                         timer = setTimeout(function () { controller.abort(); }, JSON_TIMEOUT_MS);
-                    }
                     _a.label = 1;
                 case 1:
-                    _a.trys.push([1, 4, 5, 6]);
-                    options = { cache: 'force-cache' };
+                    _a.trys.push([1, , 4, 5]);
+                    options = { cache: cacheMode || 'default' };
                     if (controller)
                         options.signal = controller.signal;
-                    return [4 /*yield*/, fetch(path + '?v=' + encodeURIComponent(DATA_VERSION), options)];
+                    return [4 /*yield*/, fetch(url, options)];
                 case 2:
-                    r = _a.sent();
-                    if (!r.ok)
-                        throw new Error('HTTP ' + r.status + '：' + path);
-                    return [4 /*yield*/, r.json()];
-                case 3:
-                    data = _a.sent();
-                    try {
-                        localStorage.setItem(key, JSON.stringify(data));
-                    }
-                    catch (_) { }
-                    return [2 /*return*/, data];
+                    response = _a.sent();
+                    if (!response.ok)
+                        throw new Error('HTTP ' + response.status + '：' + url);
+                    return [4 /*yield*/, response.json()];
+                case 3: return [2 /*return*/, _a.sent()];
                 case 4:
-                    err_1 = _a.sent();
-                    try {
-                        cached = localStorage.getItem(key);
-                        if (cached)
-                            return [2 /*return*/, JSON.parse(cached)];
-                    }
-                    catch (_) { }
-                    message = err_1 && err_1.name === 'AbortError' ? '資料讀取逾時：' + path : '資料讀取失敗：' + path;
-                    wrapped = new Error(message);
-                    wrapped.cause = err_1;
-                    throw wrapped;
-                case 5:
                     if (timer !== null)
                         clearTimeout(timer);
                     return [7 /*endfinally*/];
-                case 6: return [2 /*return*/];
+                case 5: return [2 /*return*/];
+            }
+        });
+    });
+}
+function fetchLatestSiteVersion_() {
+    return __awaiter(this, void 0, void 0, function () {
+        var versionUrl, manifest, version, err_1, cached, current, wrapped;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    _a.trys.push([0, 2, , 3]);
+                    versionUrl = SITE_VERSION_FILE + '?t=' + Date.now();
+                    return [4 /*yield*/, fetchJsonRequest_(versionUrl, 'no-store')];
+                case 1:
+                    manifest = _a.sent();
+                    version = String(manifest && manifest.dataVersion || '').trim();
+                    if (!version)
+                        throw new Error('site-version.json 缺少 dataVersion');
+                    writeJsonStorage_(SITE_VERSION_CACHE_KEY, manifest);
+                    return [2 /*return*/, manifest];
+                case 2:
+                    err_1 = _a.sent();
+                    cached = readJsonStorage_(SITE_VERSION_CACHE_KEY);
+                    if (cached && cached.dataVersion)
+                        return [2 /*return*/, cached];
+                    current = '';
+                    try {
+                        current = localStorage.getItem(SITE_DATA_CURRENT_VERSION_KEY) || '';
+                    }
+                    catch (_) { }
+                    if (current)
+                        return [2 /*return*/, { schemaVersion: 1, dataVersion: current, generatedAt: '', publishedAt: '', cached: true }];
+                    wrapped = new Error('版本資料讀取失敗：' + SITE_VERSION_FILE);
+                    wrapped.cause = err_1;
+                    throw wrapped;
+                case 3: return [2 /*return*/];
+            }
+        });
+    });
+}
+function fetchSiteDataByVersion_(version) {
+    return __awaiter(this, void 0, void 0, function () {
+        var normalizedVersion, cacheKey, dataUrl, data, err_2, exactCached, lastVersion, lastCached, message, wrapped;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    normalizedVersion = String(version || '').trim();
+                    if (!normalizedVersion)
+                        throw new Error('缺少網站資料版本號');
+                    cacheKey = siteDataCacheKey_(normalizedVersion);
+                    _a.label = 1;
+                case 1:
+                    _a.trys.push([1, 3, , 4]);
+                    dataUrl = SITE_DATA_FILE + '?v=' + encodeURIComponent(normalizedVersion);
+                    return [4 /*yield*/, fetchJsonRequest_(dataUrl, 'default')];
+                case 2:
+                    data = _a.sent();
+                    writeJsonStorage_(cacheKey, data);
+                    try {
+                        localStorage.setItem(SITE_DATA_CURRENT_VERSION_KEY, normalizedVersion);
+                    }
+                    catch (_) { }
+                    cleanupVersionedSiteDataCache_(normalizedVersion);
+                    return [2 /*return*/, data];
+                case 3:
+                    err_2 = _a.sent();
+                    exactCached = readJsonStorage_(cacheKey);
+                    if (exactCached)
+                        return [2 /*return*/, exactCached];
+                    lastVersion = '';
+                    try {
+                        lastVersion = localStorage.getItem(SITE_DATA_CURRENT_VERSION_KEY) || '';
+                    }
+                    catch (_) { }
+                    if (lastVersion) {
+                        lastCached = readJsonStorage_(siteDataCacheKey_(lastVersion));
+                        if (lastCached)
+                            return [2 /*return*/, lastCached];
+                    }
+                    message = err_2 && err_2.name === 'AbortError' ? '資料讀取逾時：' + SITE_DATA_FILE : '資料讀取失敗：' + SITE_DATA_FILE;
+                    wrapped = new Error(message);
+                    wrapped.cause = err_2;
+                    throw wrapped;
+                case 4: return [2 /*return*/];
+            }
+        });
+    });
+}
+function fetchCurrentSiteData_() {
+    return __awaiter(this, void 0, void 0, function () {
+        var manifest, data;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0: return [4 /*yield*/, fetchLatestSiteVersion_()];
+                case 1:
+                    manifest = _a.sent();
+                    return [4 /*yield*/, fetchSiteDataByVersion_(manifest.dataVersion)];
+                case 2:
+                    data = _a.sent();
+                    return [2 /*return*/, { manifest: manifest, data: data }];
             }
         });
     });
@@ -339,14 +439,15 @@ function normalizeSiteData_(bundle) {
 }
 function initData() {
     return __awaiter(this, void 0, void 0, function () {
-        var bundle, normalized, err_2;
+        var loaded, bundle, normalized, err_3;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
                     _a.trys.push([0, 2, , 3]);
-                    return [4 /*yield*/, fetchJson(SITE_DATA_FILE)];
+                    return [4 /*yield*/, fetchCurrentSiteData_()];
                 case 1:
-                    bundle = _a.sent();
+                    loaded = _a.sent();
+                    bundle = loaded.data;
                     normalized = normalizeSiteData_(bundle);
                     siteConfig = normalized.config;
                     homeData = normalized.home;
@@ -362,7 +463,7 @@ function initData() {
                     renderSite_();
                     return [3 /*break*/, 3];
                 case 2:
-                    err_2 = _a.sent();
+                    err_3 = _a.sent();
                     siteConfig = defaultPublicConfig_();
                     homeData = {};
                     pageData = {};
@@ -377,7 +478,7 @@ function initData() {
                     catch (renderErr) {
                         rememberClientError_('render-after-site-data-failure', renderErr);
                     }
-                    renderDataLoadFailure_([{ path: SITE_DATA_FILE, error: err_2 }]);
+                    renderDataLoadFailure_([{ path: SITE_DATA_FILE, error: err_3 }]);
                     return [3 /*break*/, 3];
                 case 3: return [2 /*return*/];
             }
@@ -423,10 +524,10 @@ function renderSite_() { renderCommonShell(); renderHome(); renderSubpage(); req
 } }); }
 function shuffle(list) {
     var _a;
-    var a = __spreadArray([], __read(list), false);
+    var a = __spreadArray([], list, true);
     for (var i = a.length - 1; i > 0; i--) {
         var j = Math.floor(Math.random() * (i + 1));
-        _a = __read([a[j], a[i]], 2), a[i] = _a[0], a[j] = _a[1];
+        _a = [a[j], a[i]], a[i] = _a[0], a[j] = _a[1];
     }
     return a;
 }
@@ -741,7 +842,7 @@ function openArtwork(id) { var a = artworks.find(function (x) { return String(x.
 function renderExhibitions() { var host = document.querySelector('#exhibitionTimeline'); if (!host)
     return; var rows = (exhibitions || []).filter(function (r) { return r.isPublic == null || truth(r.isPublic); }).sort(function (a, b) { return (Number(b.year || 0) - Number(a.year || 0)) || (Number(a.sort || 0) - Number(b.sort || 0)); }); host.innerHTML = rows.map(function (r) { return "<article class=\"exhibition-row\"><time>".concat(esc(r.year || r.date || ''), "</time><strong>").concat(esc(r.title || ''), "</strong><span>").concat(esc(r.location || ''), "</span><span>").concat(esc(r.type || ''), "</span></article>"); }).join(''); }
 function renderHistory() { var host = document.querySelector('#historyCards'); if (!host)
-    return; var rows = __spreadArray(__spreadArray([], __read((historyItems || [])), false), __read((books || [])), false).filter(function (r) { return r.isPublic == null || truth(r.isPublic); }); host.innerHTML = rows.map(function (r, i) { var src = directImageUrl(r.imageUrl || r.coverUrl || ''); return "<button class=\"history-card\" type=\"button\" data-history=\"".concat(i, "\">").concat(src ? "<img src=\"".concat(esc(src), "\" alt=\"").concat(esc(r.title || r.name || '歷史資料'), "\">") : '', "<span><strong>").concat(esc(r.title || r.name || '歷史資料'), "</strong><small>").concat(esc(r.year || r.date || ''), "</small></span></button>"); }).join(''); host.querySelectorAll('[data-history]').forEach(function (b) { return b.onclick = function () { return openHistory(rows[Number(b.dataset.history)]); }; }); }
+    return; var rows = __spreadArray(__spreadArray([], (historyItems || []), true), (books || []), true).filter(function (r) { return r.isPublic == null || truth(r.isPublic); }); host.innerHTML = rows.map(function (r, i) { var src = directImageUrl(r.imageUrl || r.coverUrl || ''); return "<button class=\"history-card\" type=\"button\" data-history=\"".concat(i, "\">").concat(src ? "<img src=\"".concat(esc(src), "\" alt=\"").concat(esc(r.title || r.name || '歷史資料'), "\">") : '', "<span><strong>").concat(esc(r.title || r.name || '歷史資料'), "</strong><small>").concat(esc(r.year || r.date || ''), "</small></span></button>"); }).join(''); host.querySelectorAll('[data-history]').forEach(function (b) { return b.onclick = function () { return openHistory(rows[Number(b.dataset.history)]); }; }); }
 function openHistory(r) { var m = document.querySelector('#historyModal'); if (!m) {
     m = document.createElement('div');
     m.id = 'historyModal';
@@ -762,7 +863,7 @@ function initContactForm() {
         return;
     form.dataset.bound = '1';
     form.addEventListener('submit', function (e) { return __awaiter(_this, void 0, void 0, function () {
-        var btn, fd, data, res, err_3;
+        var btn, fd, data, res, err_4;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
@@ -784,8 +885,8 @@ function initContactForm() {
                     form.reset();
                     return [3 /*break*/, 5];
                 case 3:
-                    err_3 = _a.sent();
-                    msg.textContent = '送出失敗：' + err_3.message;
+                    err_4 = _a.sent();
+                    msg.textContent = '送出失敗：' + err_4.message;
                     return [3 /*break*/, 5];
                 case 4:
                     btn.disabled = false;
@@ -808,7 +909,7 @@ function initNavProgress() {
         rail.setAttribute('aria-hidden', 'true');
         shell.appendChild(rail);
     }
-    var links = __spreadArray([], __read(nav.querySelectorAll('.nav-link')), false);
+    var links = __spreadArray([], nav.querySelectorAll('.nav-link'), true);
     var centerActive = function (behavior) {
         if (behavior === void 0) { behavior = 'auto'; }
         var active = links.find(function (x) { return x.classList.contains('active'); });
@@ -823,7 +924,7 @@ function initNavProgress() {
     addEventListener('pageshow', function () { return setTimeout(function () { centerActive('auto'); updateEdges(); }, 30); }, { once: true });
     requestAnimationFrame(function () { centerActive('auto'); updateEdges(); });
 }
-function initUiEffects() { var reveals = __spreadArray([], __read(document.querySelectorAll('.reveal')), false); if ('IntersectionObserver' in window) {
+function initUiEffects() { var reveals = __spreadArray([], document.querySelectorAll('.reveal'), true); if ('IntersectionObserver' in window) {
     var io_1 = new IntersectionObserver(function (es) { return es.forEach(function (e) { if (e.isIntersecting) {
         e.target.classList.add('visible');
         io_1.unobserve(e.target);

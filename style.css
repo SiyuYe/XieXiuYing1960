@@ -344,3 +344,54 @@ body[data-page="home"] .home-hero{
 .art-load-more[hidden],.art-load-sentinel[hidden]{display:none!important;}
 .art-load-sentinel{display:block;width:1px;height:1px;overflow:hidden;}
 .art-empty{grid-column:1/-1;text-align:center;}
+
+/* V7.9.1：首頁藝術焦點輪播與本月精選完整顯示作品，不裁切原畫 */
+body[data-page="home"] .hero-art{
+  background:#f4f8f7;
+}
+body[data-page="home"] .hero-art > img,
+body[data-page="home"] #heroImage{
+  width:100%;
+  height:100%;
+  object-fit:contain!important;
+  object-position:center center!important;
+  background:#f4f8f7;
+}
+
+/* 本月精選：圖片完整容納，縮短下方資訊列，將更多高度留給作品 */
+body[data-page="home"] #featuredWorks .art-card{
+  min-width:220px;
+  background:#fff;
+}
+body[data-page="home"] #featuredWorks .art-card > img{
+  width:100%;
+  height:240px!important;
+  object-fit:contain!important;
+  object-position:center center!important;
+  background:#f4f8f7;
+}
+body[data-page="home"] #featuredWorks .art-card .art-info{
+  padding:7px 12px 8px!important;
+  gap:1px!important;
+  line-height:1.05;
+}
+body[data-page="home"] #featuredWorks .art-card .art-info strong{
+  font-size:17px;
+  line-height:1.08;
+  margin:0;
+}
+body[data-page="home"] #featuredWorks .art-card .art-info span,
+body[data-page="home"] #featuredWorks .art-card .art-info small{
+  font-size:13px;
+  line-height:1.08!important;
+  margin-top:1px!important;
+}
+
+@media(max-width:620px){
+  body[data-page="home"] #featuredWorks .art-card{min-width:190px}
+  body[data-page="home"] #featuredWorks .art-card > img{height:215px!important}
+  body[data-page="home"] #featuredWorks .art-card .art-info{padding:6px 10px 7px!important}
+  body[data-page="home"] #featuredWorks .art-card .art-info strong{font-size:16px}
+  body[data-page="home"] #featuredWorks .art-card .art-info span,
+  body[data-page="home"] #featuredWorks .art-card .art-info small{font-size:12px}
+}

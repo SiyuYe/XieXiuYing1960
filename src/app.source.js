@@ -7,6 +7,10 @@ const GITHUB_PAGES_BASE='https://siyuye.github.io/XieXiuYing1960/';
 const CLIENT_ERROR_LOG_KEY='xxy.clientErrors.v7909b';
 const JSON_TIMEOUT_MS=12000;
 const SITE_DATA_FILE='data/site-data.json';
+const SITE_VERSION_FILE='data/site-version.json';
+const SITE_DATA_CACHE_PREFIX='xxy.siteData.';
+const SITE_DATA_CURRENT_VERSION_KEY='xxy.siteData.currentVersion';
+const SITE_VERSION_CACHE_KEY='xxy.siteVersion.latest';
 let siteConfig=null,homeData=null,pageData=null,artworks=[],exhibitions=[],historyItems=[],books=[],galleryShows=[],imageManifest={artworks:{},artworkOrder:[],teacherPhotos:{1600:['images/yingphoto/1600/xiexiuying001.webp'],600:['images/yingphoto/600/xiexiuying001.webp']}};
 const ART_BATCH_SIZE=16;
 let heroTimer=null,uiEffectsReady=false;
@@ -93,27 +97,90 @@ function createCompatSet_(initialValues){
   add:function(value){if(values.indexOf(value)<0)values.push(value);return this;}
  };
 }
-async function fetchJson(path){
- const key='xxy.static.'+path;
+function readJsonStorage_(key){
+ try{
+  const raw=localStorage.getItem(key);
+  return raw?JSON.parse(raw):null;
+ }catch(_){return null;}
+}
+function writeJsonStorage_(key,value){
+ try{localStorage.setItem(key,JSON.stringify(value));}catch(_){}
+}
+function siteDataCacheKey_(version){return SITE_DATA_CACHE_PREFIX+String(version||'unknown');}
+function cleanupVersionedSiteDataCache_(keepVersion){
+ try{
+  const keepKey=siteDataCacheKey_(keepVersion);
+  const remove=[];
+  for(let i=0;i<localStorage.length;i++){
+   const key=localStorage.key(i)||'';
+   if(key.indexOf(SITE_DATA_CACHE_PREFIX)===0&&key!==keepKey&&key!==SITE_DATA_CURRENT_VERSION_KEY)remove.push(key);
+  }
+  remove.forEach(function(key){localStorage.removeItem(key);});
+  localStorage.removeItem('xxy.static.'+SITE_DATA_FILE);
+ }catch(err){rememberClientError_('site-data-cache-cleanup',err);}
+}
+async function fetchJsonRequest_(url,cacheMode){
  const supportsAbort=typeof window.AbortController==='function';
  const controller=supportsAbort?new window.AbortController():null;
  let timer=null;
- if(controller){timer=setTimeout(function(){controller.abort();},JSON_TIMEOUT_MS);}
+ if(controller)timer=setTimeout(function(){controller.abort();},JSON_TIMEOUT_MS);
  try{
-  const options={cache:'force-cache'};
+  const options={cache:cacheMode||'default'};
   if(controller)options.signal=controller.signal;
-  const r=await fetch(path+'?v='+encodeURIComponent(DATA_VERSION),options);
-  if(!r.ok)throw new Error('HTTP '+r.status+'：'+path);
-  const data=await r.json();
-  try{localStorage.setItem(key,JSON.stringify(data));}catch(_){}
+  const response=await fetch(url,options);
+  if(!response.ok)throw new Error('HTTP '+response.status+'：'+url);
+  return await response.json();
+ }finally{if(timer!==null)clearTimeout(timer);}
+}
+async function fetchLatestSiteVersion_(){
+ try{
+  const versionUrl=SITE_VERSION_FILE+'?t='+Date.now();
+  const manifest=await fetchJsonRequest_(versionUrl,'no-store');
+  const version=String(manifest&&manifest.dataVersion||'').trim();
+  if(!version)throw new Error('site-version.json 缺少 dataVersion');
+  writeJsonStorage_(SITE_VERSION_CACHE_KEY,manifest);
+  return manifest;
+ }catch(err){
+  const cached=readJsonStorage_(SITE_VERSION_CACHE_KEY);
+  if(cached&&cached.dataVersion)return cached;
+  let current='';
+  try{current=localStorage.getItem(SITE_DATA_CURRENT_VERSION_KEY)||'';}catch(_){}
+  if(current)return {schemaVersion:1,dataVersion:current,generatedAt:'',publishedAt:'',cached:true};
+  const wrapped=new Error('版本資料讀取失敗：'+SITE_VERSION_FILE);
+  wrapped.cause=err;
+  throw wrapped;
+ }
+}
+async function fetchSiteDataByVersion_(version){
+ const normalizedVersion=String(version||'').trim();
+ if(!normalizedVersion)throw new Error('缺少網站資料版本號');
+ const cacheKey=siteDataCacheKey_(normalizedVersion);
+ try{
+  const dataUrl=SITE_DATA_FILE+'?v='+encodeURIComponent(normalizedVersion);
+  const data=await fetchJsonRequest_(dataUrl,'default');
+  writeJsonStorage_(cacheKey,data);
+  try{localStorage.setItem(SITE_DATA_CURRENT_VERSION_KEY,normalizedVersion);}catch(_){}
+  cleanupVersionedSiteDataCache_(normalizedVersion);
   return data;
  }catch(err){
-  try{const cached=localStorage.getItem(key);if(cached)return JSON.parse(cached);}catch(_){}
-  const message=err&&err.name==='AbortError'?'資料讀取逾時：'+path:'資料讀取失敗：'+path;
+  const exactCached=readJsonStorage_(cacheKey);
+  if(exactCached)return exactCached;
+  let lastVersion='';
+  try{lastVersion=localStorage.getItem(SITE_DATA_CURRENT_VERSION_KEY)||'';}catch(_){}
+  if(lastVersion){
+   const lastCached=readJsonStorage_(siteDataCacheKey_(lastVersion));
+   if(lastCached)return lastCached;
+  }
+  const message=err&&err.name==='AbortError'?'資料讀取逾時：'+SITE_DATA_FILE:'資料讀取失敗：'+SITE_DATA_FILE;
   const wrapped=new Error(message);
   wrapped.cause=err;
   throw wrapped;
- }finally{if(timer!==null)clearTimeout(timer);}
+ }
+}
+async function fetchCurrentSiteData_(){
+ const manifest=await fetchLatestSiteVersion_();
+ const data=await fetchSiteDataByVersion_(manifest.dataVersion);
+ return {manifest,data};
 }
 const truth=v=>v===true||String(v||'').toUpperCase()==='TRUE'||String(v||'')==='是';
 function esc(s=''){return String(s).replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[m]));}
@@ -202,7 +269,8 @@ function normalizeSiteData_(bundle){
 }
 async function initData(){
  try{
-  const bundle=await fetchJson(SITE_DATA_FILE);
+  const loaded=await fetchCurrentSiteData_();
+  const bundle=loaded.data;
   const normalized=normalizeSiteData_(bundle);
   siteConfig=normalized.config;homeData=normalized.home;pageData=normalized.pages;artworks=normalized.artworks;exhibitions=normalized.exhibitions;historyItems=normalized.history;books=normalized.books;galleryShows=normalized.gallery;imageManifest=normalized.imageManifest||imageManifest;
   seedArtworkImagesFromManifest_();normalizeArtworkList_();renderSite_();

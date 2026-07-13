@@ -1,15 +1,24 @@
 #!/usr/bin/env python3
-"""Validate Apps Script siteData JSON and update data/site-data.json only on semantic changes."""
+"""Validate Apps Script siteData and publish versioned static JSON files.
+
+Step 12-1 responsibilities:
+- Validate the downloaded Apps Script siteData payload.
+- Generate a fresh dataVersion for every successful workflow run.
+- Update data/site-data.json.
+- Generate data/site-version.json for the later two-stage frontend loader.
+"""
 
 from __future__ import annotations
 
 import json
+import os
 import sys
-from copy import deepcopy
+from datetime import datetime
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
-VOLATILE_TOP_LEVEL_KEYS = {"generatedAt", "dataVersion"}
+TAIPEI = ZoneInfo("Asia/Taipei")
 
 
 def fail(message: str) -> None:
@@ -55,66 +64,74 @@ def validate_site_data(data: Any) -> None:
         fail("imageManifest 必須是物件")
 
     validation = data.get("validation")
-    if isinstance(validation, dict):
-        if validation.get("valid") is not True:
-            errors = validation.get("errors") or []
-            fail("Apps Script validation.valid 不是 true：" + "；".join(map(str, errors)))
+    if isinstance(validation, dict) and validation.get("valid") is not True:
+        errors = validation.get("errors") or []
+        fail("Apps Script validation.valid 不是 true：" + "；".join(map(str, errors)))
 
     meta = data.get("meta")
     if isinstance(meta, dict) and meta.get("completeFieldMapping") is False:
         fail("API 仍是未完成的 siteData 骨架，拒絕覆蓋正式資料")
 
 
-def semantic_copy(data: Any) -> Any:
-    """Remove values that change every request but do not represent content changes."""
-    result = deepcopy(data)
-    if isinstance(result, dict):
-        for key in VOLATILE_TOP_LEVEL_KEYS:
-            result.pop(key, None)
-    return result
+def write_json(path: Path, data: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8", newline="\n") as handle:
+        json.dump(data, handle, ensure_ascii=False, indent=2)
+        handle.write("\n")
 
 
-def stable_dump(data: Any) -> str:
-    return json.dumps(data, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+def make_data_version() -> tuple[str, str]:
+    now = datetime.now(TAIPEI).replace(microsecond=0)
+    return now.strftime("%Y%m%d%H%M%S"), now.isoformat()
+
+
+def append_github_output(**values: str) -> None:
+    output_env = os.environ.get("GITHUB_OUTPUT")
+    if not output_env:
+        return
+    with Path(output_env).open("a", encoding="utf-8") as handle:
+        for key, value in values.items():
+            handle.write(f"{key}={value}\n")
 
 
 def main() -> None:
-    if len(sys.argv) != 3:
-        fail("用法：update_site_data.py <下載檔> <正式檔>")
+    if len(sys.argv) != 4:
+        fail("用法：update_site_data.py <下載檔> <site-data.json> <site-version.json>")
 
     incoming_path = Path(sys.argv[1])
-    target_path = Path(sys.argv[2])
+    site_data_path = Path(sys.argv[2])
+    version_path = Path(sys.argv[3])
+
     incoming = load_json(incoming_path)
     validate_site_data(incoming)
 
-    current = None
-    if target_path.exists():
-        current = load_json(target_path)
+    data_version, published_at = make_data_version()
+    incoming["dataVersion"] = data_version
 
-    changed = current is None or stable_dump(semantic_copy(current)) != stable_dump(semantic_copy(incoming))
+    version_payload = {
+        "schemaVersion": 1,
+        "dataVersion": data_version,
+        "generatedAt": incoming["generatedAt"],
+        "publishedAt": published_at,
+    }
 
-    github_output = Path(str(Path.cwd() / ".github-output-placeholder"))
-    output_env = __import__("os").environ.get("GITHUB_OUTPUT")
-    if output_env:
-        github_output = Path(output_env)
+    # Every successful manual or scheduled publish gets a fresh version.
+    # This intentionally updates both files on every workflow run.
+    write_json(site_data_path, incoming)
+    write_json(version_path, version_payload)
 
-    target_path.parent.mkdir(parents=True, exist_ok=True)
-    if changed:
-        with target_path.open("w", encoding="utf-8", newline="\n") as handle:
-            json.dump(incoming, handle, ensure_ascii=False, indent=2)
-            handle.write("\n")
-        status = "updated"
-        print(f"site-data 已更新：{len(incoming['artworks'])} 件公開作品")
-    else:
-        status = "unchanged"
-        print("site-data 實質內容沒有變更，不覆蓋檔案、不建立 Commit")
+    print(f"site-data 已發布：{len(incoming['artworks'])} 件公開作品")
+    print(f"dataVersion：{data_version}")
+    print(f"site-version：{version_path}")
 
-    if output_env:
-        with github_output.open("a", encoding="utf-8") as handle:
-            handle.write(f"changed={'true' if changed else 'false'}\n")
-            handle.write(f"status={status}\n")
-            handle.write(f"artwork_count={len(incoming['artworks'])}\n")
-            handle.write(f"generated_at={incoming['generatedAt']}\n")
+    append_github_output(
+        changed="true",
+        status="published",
+        artwork_count=str(len(incoming["artworks"])),
+        generated_at=incoming["generatedAt"],
+        data_version=data_version,
+        published_at=published_at,
+    )
 
 
 if __name__ == "__main__":
