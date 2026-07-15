@@ -2,3 +2,4 @@ User-agent: *
 Allow: /
 
 Sitemap: https://siyuye.github.io/XieXiuYing1960/sitemap.xml
+Sitemap: https://siyuye.github.io/XieXiuYing1960/sitemap.txt
