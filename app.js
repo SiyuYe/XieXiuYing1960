@@ -531,194 +531,141 @@ function shuffle(list) {
     }
     return a;
 }
-
 var artworkSeoDefault_ = null, collectionSeoDefault_ = null;
 var artworkUrlOpened_ = false;
-function ensureMeta_(selector, attrs) { var el = document.head.querySelector(selector); if (!el) { el = document.createElement(attrs.tag || 'meta'); Object.keys(attrs).forEach(function (k) { if (k !== 'tag' && k !== 'content') el.setAttribute(k, attrs[k]); }); document.head.appendChild(el); } return el; }
-function absoluteUrl_(value){
- try{return new URL(String(value||''),location.href).href;}catch(_){return String(value||'');}
+function ensureMeta_(selector, attrs) {
+    var el = document.head.querySelector(selector);
+    if (!el) {
+        el = document.createElement(attrs.tag || 'meta');
+        Object.keys(attrs).forEach(function (k) { if (k !== 'tag' && k !== 'content')
+            el.setAttribute(k, attrs[k]); });
+        document.head.appendChild(el);
+    }
+    return el;
 }
-function metaContent_(selector){const el=document.head.querySelector(selector);return el?String(el.content||el.getAttribute('content')||''):'';}
-function schemaScript_(){
- let el=document.head.querySelector('#dynamic-structured-data');
- if(!el){el=document.createElement('script');el.id='dynamic-structured-data';el.type='application/ld+json';document.head.appendChild(el);}
- return el;
+function rememberArtworkSeoDefault_() {
+    if (artworkSeoDefault_)
+        return;
+    var description = document.head.querySelector('meta[name="description"]');
+    var canonical = document.head.querySelector('link[rel="canonical"]');
+    artworkSeoDefault_ = { title: document.title, description: description ? description.content : '', canonical: canonical ? canonical.href : location.href.split('?')[0] };
 }
-function setStructuredData_(value){schemaScript_().textContent=JSON.stringify(value,null,2);}
-function removeStructuredData_(){document.head.querySelector('#dynamic-structured-data')?.remove();}
-function setSocialSeo_(data){
- const title=String(data.title||document.title||'');
- const description=String(data.description||'');
- const canonical=String(data.canonical||location.href);
- const image=absoluteUrl_(data.image||'assets/images/header-banner.webp');
- const imageAlt=String(data.imageAlt||title||'謝秀英書畫藝術館');
- ensureMeta_('meta[property="og:locale"]',{property:'og:locale'}).content='zh_TW';
- ensureMeta_('meta[property="og:type"]',{property:'og:type'}).content=data.ogType||'website';
- ensureMeta_('meta[property="og:site_name"]',{property:'og:site_name'}).content='謝秀英書畫藝術館';
- ensureMeta_('meta[property="og:title"]',{property:'og:title'}).content=title;
- ensureMeta_('meta[property="og:description"]',{property:'og:description'}).content=description;
- ensureMeta_('meta[property="og:url"]',{property:'og:url'}).content=canonical;
- ensureMeta_('meta[property="og:image"]',{property:'og:image'}).content=image;
- ensureMeta_('meta[property="og:image:alt"]',{property:'og:image:alt'}).content=imageAlt;
- ensureMeta_('meta[name="twitter:card"]',{name:'twitter:card'}).content='summary_large_image';
- ensureMeta_('meta[name="twitter:title"]',{name:'twitter:title'}).content=title;
- ensureMeta_('meta[name="twitter:description"]',{name:'twitter:description'}).content=description;
- ensureMeta_('meta[name="twitter:image"]',{name:'twitter:image'}).content=image;
- ensureMeta_('meta[name="twitter:image:alt"]',{name:'twitter:image:alt'}).content=imageAlt;
+function applyArtworkSeo_(a) {
+    if (!a || !window.SeoHelper)
+        return;
+    rememberArtworkSeoDefault_();
+    var canonical = window.SeoHelper.generateCanonical(a);
+    document.title = window.SeoHelper.generateTitle(a);
+    ensureMeta_('meta[name="description"]', { name: 'description' }).content = window.SeoHelper.generateDescription(a);
+    ensureMeta_('link[rel="canonical"]', { tag: 'link', rel: 'canonical' }).href = canonical;
+    var url = new URL(location.href);
+    url.searchParams.set('id', a.id || a.artworkId || '');
+    history.replaceState({ artworkId: a.id || a.artworkId || '' }, '', url.href);
 }
-function currentSeoSnapshot_(){
- const description=document.head.querySelector('meta[name="description"]');
- const canonical=document.head.querySelector('link[rel="canonical"]');
- const dynamic=document.head.querySelector('#dynamic-structured-data');
- return {
-  title:document.title,
-  description:description?description.content:'',
-  canonical:canonical?canonical.href:location.href.split('?')[0],
-  social:{
-   ogType:metaContent_('meta[property="og:type"]'),title:metaContent_('meta[property="og:title"]'),description:metaContent_('meta[property="og:description"]'),
-   canonical:metaContent_('meta[property="og:url"]'),image:metaContent_('meta[property="og:image"]'),imageAlt:metaContent_('meta[property="og:image:alt"]')
-  },
-  schema:dynamic?dynamic.textContent:''
- };
+function restoreArtworkSeo_() {
+    if (!artworkSeoDefault_)
+        return;
+    document.title = artworkSeoDefault_.title;
+    ensureMeta_('meta[name="description"]', { name: 'description' }).content = artworkSeoDefault_.description;
+    ensureMeta_('link[rel="canonical"]', { tag: 'link', rel: 'canonical' }).href = artworkSeoDefault_.canonical;
+    var url = new URL(location.href);
+    url.searchParams.delete('id');
+    history.replaceState({}, '', url.href);
 }
-function restoreSeoSnapshot_(snapshot){
- if(!snapshot)return;
- document.title=snapshot.title;
- ensureMeta_('meta[name="description"]',{name:'description'}).content=snapshot.description;
- ensureMeta_('link[rel="canonical"]',{tag:'link',rel:'canonical'}).href=snapshot.canonical;
- setSocialSeo_(snapshot.social||{title:snapshot.title,description:snapshot.description,canonical:snapshot.canonical});
- if(snapshot.schema){schemaScript_().textContent=snapshot.schema;}else removeStructuredData_();
+function openArtworkFromUrl_() {
+    if (artworkUrlOpened_)
+        return;
+    var id = new URLSearchParams(location.search).get('id');
+    if (!id)
+        return;
+    artworkUrlOpened_ = true;
+    openArtwork(id);
 }
-function artworkStructuredData_(a,title,description,canonical,image,imageAlt){
- const d=window.SeoHelper.normalizeArtwork(a);
- const type=String(a.artworkTypeName||a.categoryZh||a.artworkType||a.typeName||'').trim();
- const subjects=collectionFieldTerms_(a,COLLECTION_FILTERS.subject.fields);
- const materials=collectionFieldTerms_(a,COLLECTION_FILTERS.material.fields);
- const media=collectionFieldTerms_(a,COLLECTION_FILTERS.medium.fields);
- const visual={
-  '@type':'VisualArtwork','@id':canonical+'#artwork',url:canonical,name:d.titleZh||d.titleEn||'作品典藏',alternateName:d.titleEn||undefined,
-  description:description,image:{'@type':'ImageObject',url:image,contentUrl:image,caption:imageAlt},
-  creator:{'@type':'Person','@id':'https://siyuye.github.io/XieXiuYing1960/#artist',name:d.artistName||'謝秀英'},
-  artform:type||undefined,artMedium:media.length?media.join('、'):undefined,material:materials.length?materials.join('、'):undefined,
-  genre:subjects.length?subjects:undefined,dateCreated:d.year||undefined,inLanguage:'zh-Hant',isPartOf:{'@id':'https://siyuye.github.io/XieXiuYing1960/works.html#collection'}
- };
- Object.keys(visual).forEach(k=>visual[k]===undefined&&delete visual[k]);
- return {'@context':'https://schema.org','@graph':[
-  visual,
-  {'@type':'WebPage','@id':canonical+'#webpage',url:canonical,name:title,description:description,primaryImageOfPage:{'@type':'ImageObject',url:image},mainEntity:{'@id':canonical+'#artwork'},isPartOf:{'@id':'https://siyuye.github.io/XieXiuYing1960/#website'},breadcrumb:{'@id':canonical+'#breadcrumb'},inLanguage:'zh-Hant'},
-  {'@type':'BreadcrumbList','@id':canonical+'#breadcrumb',itemListElement:[
-   {'@type':'ListItem',position:1,name:'首頁',item:'https://siyuye.github.io/XieXiuYing1960/'},
-   {'@type':'ListItem',position:2,name:'作品集',item:'https://siyuye.github.io/XieXiuYing1960/works.html'},
-   {'@type':'ListItem',position:3,name:d.titleZh||d.titleEn||'作品',item:canonical}
-  ]}
- ]};
-}
-function collectionStructuredData_(filter,title,description,canonical){
- const name=filter&&filter.value?filter.value+'作品集':'作品集';
- return {'@context':'https://schema.org','@graph':[
-  {'@type':'CollectionPage','@id':canonical+'#collection',url:canonical,name:title,description:description,isPartOf:{'@id':'https://siyuye.github.io/XieXiuYing1960/#website'},about:{'@id':'https://siyuye.github.io/XieXiuYing1960/#artist'},breadcrumb:{'@id':canonical+'#breadcrumb'},inLanguage:'zh-Hant'},
-  {'@type':'BreadcrumbList','@id':canonical+'#breadcrumb',itemListElement:[
-   {'@type':'ListItem',position:1,name:'首頁',item:'https://siyuye.github.io/XieXiuYing1960/'},
-   {'@type':'ListItem',position:2,name:'作品集',item:'https://siyuye.github.io/XieXiuYing1960/works.html'},
-   ...(filter&&filter.value?[{'@type':'ListItem',position:3,name:name,item:canonical}]:[])
-  ]}
- ]};
-}
-function rememberArtworkSeoDefault_(){if(!artworkSeoDefault_)artworkSeoDefault_=currentSeoSnapshot_();}
-function applyArtworkSeo_(a){
- if(!a||!window.SeoHelper)return;
- rememberArtworkSeoDefault_();
- const canonical=window.SeoHelper.generateCanonical(a);
- const title=window.SeoHelper.generateTitle(a);
- const description=window.SeoHelper.generateDescription(a);
- const sources=artworkImageSources_(a,'2400');
- const image=absoluteUrl_(sources.primary||imgLargeSrc(a));
- const imageAlt=window.SeoHelper.generateAlt(a);
- document.title=title;
- ensureMeta_('meta[name="description"]',{name:'description'}).content=description;
- ensureMeta_('link[rel="canonical"]',{tag:'link',rel:'canonical'}).href=canonical;
- setSocialSeo_({title,description,canonical,image,imageAlt,ogType:'article'});
- setStructuredData_(artworkStructuredData_(a,title,description,canonical,image,imageAlt));
- const url=new URL(location.href);url.search='';url.searchParams.set('id',a.id||a.artworkId||'');history.replaceState({artworkId:a.id||a.artworkId||''},'',url.href);
-}
-function restoreArtworkSeo_(){
- if(!artworkSeoDefault_)return;
- restoreSeoSnapshot_(artworkSeoDefault_);
- artworkSeoDefault_=null;
- const url=new URL(location.href);url.searchParams.delete('id');history.replaceState({},'',url.href);
-}
-function openArtworkFromUrl_(){
- if(artworkUrlOpened_)return;
- const id=new URLSearchParams(location.search).get('id');
- if(!id)return;
- artworkUrlOpened_=true;openArtwork(id);
-}
-
-const COLLECTION_FILTERS={
- type:{label:'作品類型',fields:['artworkTypeName','categoryZh','artworkType','typeName']},
- subject:{label:'題材',fields:['subjectNames','subjectName','subject']},
- material:{label:'材質',fields:['materialNames','materialName','material']},
- medium:{label:'媒材',fields:['mediumNames','mediumName','medium']}
+var COLLECTION_FILTERS = {
+    type: { label: '作品類型', fields: ['artworkTypeName', 'categoryZh', 'artworkType', 'typeName'] },
+    subject: { label: '題材', fields: ['subjectNames', 'subjectName', 'subject'] },
+    material: { label: '材質', fields: ['materialNames', 'materialName', 'material'] },
+    medium: { label: '媒材', fields: ['mediumNames', 'mediumName', 'medium'] }
 };
-function collectionFilterFromUrl_(){
- const params=new URLSearchParams(location.search);
- for(const key of ['type','subject','material','medium']){
-  const value=String(params.get(key)||'').trim();
-  if(value)return {key,value,config:COLLECTION_FILTERS[key]};
- }
- return null;
+function collectionFilterFromUrl_() {
+    var params = new URLSearchParams(location.search);
+    for (var _i = 0, _a = ['type', 'subject', 'material', 'medium']; _i < _a.length; _i++) {
+        var key = _a[_i];
+        var value = String(params.get(key) || '').trim();
+        if (value)
+            return { key: key, value: value, config: COLLECTION_FILTERS[key] };
+    }
+    return null;
 }
-function collectionFieldTerms_(artwork,fields){
- const terms=[];
- (fields||[]).forEach(field=>{
-  const raw=artwork&&artwork[field];
-  const values=Array.isArray(raw)?raw:String(raw||'').split(/[、,，;；|｜/]+/);
-  values.forEach(value=>{const text=String(value||'').trim();if(text&&terms.indexOf(text)<0)terms.push(text);});
- });
- return terms;
+function collectionSearchFromUrl_() { return String(new URLSearchParams(location.search).get('q') || '').trim(); }
+function filterSearchArtworks_(list, query) {
+    var q = String(query || '').trim().toLocaleLowerCase();
+    if (!q)
+        return list;
+    return (list || []).filter(function (a) { return [a.titleZh, a.titleEn, a.artworkTypeName, a.categoryZh, a.subjectNames, a.material, a.medium, a.year, a.size].join(' ').toLocaleLowerCase().includes(q); });
 }
-function filterCollectionArtworks_(list,filter){
- if(!filter||!filter.value)return list;
- return (list||[]).filter(artwork=>collectionFieldTerms_(artwork,filter.config.fields).some(term=>term===filter.value||term.includes(filter.value)||filter.value.includes(term)));
+function collectionFieldTerms_(artwork, fields) {
+    var terms = [];
+    (fields || []).forEach(function (field) {
+        var raw = artwork && artwork[field];
+        var values = Array.isArray(raw) ? raw : String(raw || '').split(/[、,，;；|｜/]+/);
+        values.forEach(function (value) { var text = String(value || '').trim(); if (text && terms.indexOf(text) < 0)
+            terms.push(text); });
+    });
+    return terms;
 }
-function rememberCollectionSeoDefault_(){if(!collectionSeoDefault_)collectionSeoDefault_=currentSeoSnapshot_();}
-function applyCollectionSeo_(filter,replaceUrl=true){
- rememberCollectionSeoDefault_();
- const base='https://siyuye.github.io/XieXiuYing1960/works.html';
- if(!filter||!filter.value){
-  restoreSeoSnapshot_(collectionSeoDefault_);
-  ensureMeta_('link[rel="canonical"]',{tag:'link',rel:'canonical'}).href=base;
-  setSocialSeo_({title:document.title,description:metaContent_('meta[name="description"]'),canonical:base,image:'assets/images/header-banner.webp',imageAlt:'謝秀英書畫藝術館官方網站橫幅'});
-  setStructuredData_(collectionStructuredData_(null,document.title,metaContent_('meta[name="description"]'),base));
-  if(replaceUrl){const url=new URL(location.href);['type','subject','material','medium','id'].forEach(k=>url.searchParams.delete(k));history.replaceState({},'',url.href);}
-  artworkSeoDefault_=null;
-  return;
- }
- const value=filter.value;
- const title=value+'作品集｜謝秀英';
- const description='瀏覽謝秀英書畫藝術館「'+value+'」'+filter.config.label+'作品集，欣賞謝秀英相關書畫創作。';
- const canonical=base+'?'+filter.key+'='+encodeURIComponent(value);
- document.title=title;
- ensureMeta_('meta[name="description"]',{name:'description'}).content=description;
- ensureMeta_('link[rel="canonical"]',{tag:'link',rel:'canonical'}).href=canonical;
- setSocialSeo_({title,description,canonical,image:'assets/images/header-banner.webp',imageAlt:value+'作品集｜謝秀英'});
- setStructuredData_(collectionStructuredData_(filter,title,description,canonical));
- if(replaceUrl){const url=new URL(location.href);url.search='';url.searchParams.set(filter.key,value);history.replaceState({collectionFilter:filter.key,collectionValue:value},'',url.href);}
- artworkSeoDefault_=null;
+function filterCollectionArtworks_(list, filter) {
+    if (!filter || !filter.value)
+        return list;
+    return (list || []).filter(function (artwork) { return collectionFieldTerms_(artwork, filter.config.fields).some(function (term) { return term === filter.value || term.includes(filter.value) || filter.value.includes(term); }); });
 }
-function activateCollectionPill_(filter){
- document.querySelectorAll('.category-pills button').forEach(btn=>{
-  const key=String(btn.dataset.category||btn.textContent||'').trim();
-  btn.classList.toggle('active',!filter?key==='全部':key===filter.value);
- });
+function rememberCollectionSeoDefault_() {
+    if (collectionSeoDefault_)
+        return;
+    var description = document.head.querySelector('meta[name="description"]');
+    var canonical = document.head.querySelector('link[rel="canonical"]');
+    collectionSeoDefault_ = { title: document.title, description: description ? description.content : '', canonical: canonical ? canonical.href : location.href.split('?')[0] };
 }
-
-
+function applyCollectionSeo_(filter, replaceUrl) {
+    if (replaceUrl === void 0) { replaceUrl = true; }
+    rememberCollectionSeoDefault_();
+    var base = 'https://siyuye.github.io/XieXiuYing1960/works.html';
+    if (!filter || !filter.value) {
+        document.title = collectionSeoDefault_.title;
+        ensureMeta_('meta[name="description"]', { name: 'description' }).content = collectionSeoDefault_.description;
+        ensureMeta_('link[rel="canonical"]', { tag: 'link', rel: 'canonical' }).href = base;
+        if (replaceUrl) {
+            var url_1 = new URL(location.href);
+            ['type', 'subject', 'material', 'medium'].forEach(function (k) { return url_1.searchParams.delete(k); });
+            history.replaceState({}, '', url_1.href);
+        }
+        artworkSeoDefault_ = null;
+        return;
+    }
+    var value = filter.value;
+    document.title = value + '作品集｜謝秀英';
+    ensureMeta_('meta[name="description"]', { name: 'description' }).content = '瀏覽謝秀英書畫藝術館「' + value + '」' + filter.config.label + '作品集，欣賞謝秀英相關書畫創作。';
+    var canonical = base + '?' + filter.key + '=' + encodeURIComponent(value);
+    ensureMeta_('link[rel="canonical"]', { tag: 'link', rel: 'canonical' }).href = canonical;
+    if (replaceUrl) {
+        var url = new URL(location.href);
+        url.search = '';
+        url.searchParams.set(filter.key, value);
+        history.replaceState({ collectionFilter: filter.key, collectionValue: value }, '', url.href);
+    }
+    artworkSeoDefault_ = null;
+}
+function activateCollectionPill_(filter) {
+    document.querySelectorAll('.category-pills button').forEach(function (btn) {
+        var key = String(btn.dataset.category || btn.textContent || '').trim();
+        btn.classList.toggle('active', !filter ? key === '全部' : key === filter.value);
+    });
+}
 function valueList(a) { return [a.artworkTypeName || a.categoryZh, a.subjectNames, a.material, a.medium].filter(function (v) { return String(v || '').trim(); }); }
 function titleLines(a) { return [a.titleZh, a.titleEn].filter(function (v) { return String(v || '').trim(); }); }
 function infoLines(a) { return [[a.year, a.size].filter(function (v) { return String(v || '').trim(); }).join('｜'), valueList(a).join('｜')].filter(Boolean); }
 function homePrimaryParts(a) { return [a.titleZh, a.titleEn, a.year, a.size].filter(function (v) { return String(v || '').trim(); }); }
-function homePrimaryHtml(a) { var nameCount = [a.titleZh, a.titleEn].filter(function (v) { return String(v || '').trim(); }).length; return homePrimaryParts(a).map(function (v, i) { var cls = i < nameCount ? 'home-art-name' : 'home-art-detail'; return "".concat(i ? '<span class=\"home-art-separator\">｜</span>' : '', "<span class=\"").concat(cls, "\">").concat(esc(v), "</span>"); }).join(''); }
+function homePrimaryHtml(a) { var parts = homePrimaryParts(a); return parts.map(function (v, i) { var cls = i < ([a.titleZh, a.titleEn].filter(function (x) { return String(x || '').trim(); }).length) ? 'home-art-name' : 'home-art-detail'; return "".concat(i ? '<span class="home-art-separator">｜</span>' : '', "<span class=\"").concat(cls, "\">").concat(esc(v), "</span>"); }).join(''); }
 function homeArtInfoHtml(a) { var second = valueList(a).join('｜'); return "<div class=\"art-info home-art-info\"><div class=\"home-art-primary\">".concat(homePrimaryHtml(a), "</div>").concat(second ? "<small>".concat(esc(second), "</small>") : '', "</div>"); }
 function featuredArtInfoHtml(a) { var titles = titleLines(a), meta = [a.year, a.size].filter(function (v) { return String(v || '').trim(); }).join('｜'), details = valueList(a).join('｜'); return "<div class=\"art-info\">".concat(titles.map(function (v, i) { return "".concat(i ? '<span>｜</span>' : '', "<").concat(i ? 'span' : 'strong', ">").concat(esc(v), "</").concat(i ? 'span' : 'strong', ">"); }).join('')).concat(meta ? "<small>".concat(esc(meta), "</small>") : '').concat(details ? "<small>".concat(esc(details), "</small>") : '', "</div>"); }
 function heroCaptionLines(a) { return [homePrimaryParts(a).join('｜'), valueList(a).join('｜')].filter(Boolean); }
@@ -1002,24 +949,23 @@ function initArtSections() {
     }
     var featured = document.querySelector('#featuredWorks');
     if (featured)
-        featured.innerHTML = feat.slice(0, 8).map(function (a, i) { var first = i === 0, sources = artworkImageSources_(a, '1200'); return "<button class=\"art-card protected-image\" type=\"button\" data-watermark=\"謝秀英\" data-art-id=\"".concat(esc(a.id || a.artworkId || ''), "\"><img src=\"").concat(esc(sources.primary), "\" ").concat(imageFallbackAttrs_(sources), " alt=\"").concat(esc(artworkAlt_(a)), "\" draggable=\"false\" loading=\"").concat(first ? 'eager' : 'lazy', "\" decoding=\"async\" fetchpriority=\"").concat(first ? 'high' : 'low', "\" width=\"1200\" height=\"1200\">").concat(featuredArtInfoHtml(a), "</button>"); }).join('');
+        featured.innerHTML = feat.slice(0, 8).map(function (a, i) { var first = i === 0, sources = artworkImageSources_(a, '1200'); return "<button class=\"art-card protected-image\" type=\"button\" data-watermark=\"\u8B1D\u79C0\u82F1\" data-art-id=\"".concat(esc(a.id || a.artworkId || ''), "\"><img src=\"").concat(esc(sources.primary), "\" ").concat(imageFallbackAttrs_(sources), " alt=\"").concat(esc(artworkAlt_(a)), "\" draggable=\"false\" loading=\"").concat(first ? 'eager' : 'lazy', "\" decoding=\"async\" fetchpriority=\"").concat(first ? 'high' : 'low', "\" width=\"1200\" height=\"1200\">").concat(featuredArtInfoHtml(a), "</button>"); }).join('');
     var gallery = document.querySelector('#galleryGrid');
     if (gallery)
         renderPagedArtGrid_(gallery, shuffle(artworks.filter(function (a) { return a.gallery === true || truth(a.isGallery); })), '目前尚無公開線上藝廊作品。');
     var works = document.querySelector('#worksGrid');
     if (works) {
-        var drawWorks_1 = function (list) { return renderPagedArtGrid_(works, list, '目前沒有符合此分類的公開作品。'); };
-        var initialFilter = collectionFilterFromUrl_();
-        drawWorks_1(filterCollectionArtworks_(artworks, initialFilter));
+        var drawWorks_1 = function (list) { return renderPagedArtGrid_(works, list, '目前沒有符合此分類或搜尋條件的公開作品。'); };
+        var initialFilter = collectionFilterFromUrl_(), initialQuery = collectionSearchFromUrl_();
+        drawWorks_1(filterSearchArtworks_(filterCollectionArtworks_(artworks, initialFilter), initialQuery));
         activateCollectionPill_(initialFilter);
         applyCollectionSeo_(initialFilter, false);
-        document.querySelectorAll('.category-pills button').forEach(function (btn) { return btn.addEventListener('click', function () {
-            var key = String(btn.dataset.category || btn.textContent || '').trim();
-            var filter = key === '全部' ? null : { key: 'type', value: key, config: COLLECTION_FILTERS.type };
-            activateCollectionPill_(filter);
-            drawWorks_1(filterCollectionArtworks_(artworks, filter));
-            applyCollectionSeo_(filter, true);
-        }); });
+        if (initialQuery) {
+            document.title = '搜尋「' + initialQuery + '」｜謝秀英作品集';
+            ensureMeta_('meta[name="description"]', { name: 'description' }).content = '搜尋謝秀英書畫藝術館中與「' + initialQuery + '」相關的公開作品。';
+            ensureMeta_('link[rel="canonical"]', { tag: 'link', rel: 'canonical' }).href = 'https://siyuye.github.io/XieXiuYing1960/works.html?q=' + encodeURIComponent(initialQuery);
+        }
+        document.querySelectorAll('.category-pills button').forEach(function (btn) { return btn.addEventListener('click', function () { var key = String(btn.dataset.category || btn.textContent || '').trim(); var filter = key === '全部' ? null : { key: 'type', value: key, config: COLLECTION_FILTERS.type }; activateCollectionPill_(filter); drawWorks_1(filterCollectionArtworks_(artworks, filter)); applyCollectionSeo_(filter, true); }); });
     }
     bindArtworkCards();
     openArtworkFromUrl_();
@@ -1033,9 +979,12 @@ function openArtwork(id) { var a = artworks.find(function (x) { return String(x.
     modal.className = 'modal-backdrop';
     modal.innerHTML = '<div class="art-modal protected-image" data-watermark="謝秀英"><button class="modal-close" aria-label="關閉">×</button><div class="art-modal-image"><img draggable="false" loading="eager" decoding="async" fetchpriority="high"></div><div class="art-modal-copy"></div></div>';
     document.body.appendChild(modal);
-    modal.querySelector('.modal-close').onclick = function () { modal.classList.remove('open'); document.documentElement.classList.remove('art-modal-open'); document.body.classList.remove('art-modal-open'); restoreArtworkSeo_(); };
-    modal.onclick = function (e) { if (e.target === modal) { modal.classList.remove('open'); document.documentElement.classList.remove('art-modal-open'); document.body.classList.remove('art-modal-open'); restoreArtworkSeo_(); } };
-} var modalImage = modal.querySelector('img'), sources = artworkImageSources_(a, '2400'); modalImage.removeAttribute('src'); modalImage.dataset.fallbackSrc = sources.fallback || ''; modalImage.dataset.finalFallback = sources.final || IMAGE_PLACEHOLDER; modalImage.dataset.fallbackStep = '0'; modalImage.alt = artworkAlt_(a); modal.querySelector('.art-modal-copy').innerHTML = artInfoHtml(a) + (a.description ? "<p class=\"multiline\">".concat(nl(a.description), "</p>") : ''); applyArtworkSeo_(a); document.documentElement.classList.add('art-modal-open'); document.body.classList.add('art-modal-open'); modal.classList.add('open'); requestAnimationFrame(function () { modalImage.src = sources.primary; }); }
+    modal.querySelector('.modal-close').onclick = function () { modal.classList.remove('open'); restoreArtworkSeo_(); };
+    modal.onclick = function (e) { if (e.target === modal) {
+        modal.classList.remove('open');
+        restoreArtworkSeo_();
+    } };
+} var modalImage = modal.querySelector('img'), sources = artworkImageSources_(a, '2400'); modalImage.removeAttribute('src'); modalImage.dataset.fallbackSrc = sources.fallback || ''; modalImage.dataset.finalFallback = sources.final || IMAGE_PLACEHOLDER; modalImage.dataset.fallbackStep = '0'; modalImage.alt = artworkAlt_(a); modal.querySelector('.art-modal-copy').innerHTML = artInfoHtml(a) + (a.description ? "<p class=\"multiline\">".concat(nl(a.description), "</p>") : ''); applyArtworkSeo_(a); modal.classList.add('open'); requestAnimationFrame(function () { modalImage.src = sources.primary; }); }
 function renderExhibitions() { var host = document.querySelector('#exhibitionTimeline'); if (!host)
     return; var rows = (exhibitions || []).filter(function (r) { return r.isPublic == null || truth(r.isPublic); }).sort(function (a, b) { return (Number(b.year || 0) - Number(a.year || 0)) || (Number(a.sort || 0) - Number(b.sort || 0)); }); host.innerHTML = rows.map(function (r) { return "<article class=\"exhibition-row\"><time>".concat(esc(r.year || r.date || ''), "</time><strong>").concat(esc(r.title || ''), "</strong><span>").concat(esc(r.location || ''), "</span><span>").concat(esc(r.type || ''), "</span></article>"); }).join(''); }
 function renderHistory() { var host = document.querySelector('#historyCards'); if (!host)

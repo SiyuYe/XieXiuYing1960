@@ -29,7 +29,10 @@
     artistName: '謝秀英',
     siteName: '謝秀英書畫藝術館',
     baseUrl: 'https://siyuye.github.io/XieXiuYing1960/',
-    fallbackTitle: '作品典藏'
+    fallbackTitle: '作品典藏',
+    artistUrl: 'https://siyuye.github.io/XieXiuYing1960/',
+    organizationName: '謝秀英書畫藝術館',
+    facebookUrl: 'https://www.facebook.com/XieXiuYing1960/'
   });
 
   function cleanText(value) {
@@ -208,6 +211,24 @@
     return uniqueTexts([name].concat(details, [data.artistName, '作品'])).join(' ');
   }
 
+
+  /**
+   * 建立首頁品牌實體資料，供 Person／Organization／WebSite JSON-LD 共用。
+   * sameAs 僅收錄已確認的官方身分網址，避免加入未驗證連結。
+   */
+  function generateEntityProfile(options) {
+    var config = options || {};
+    var baseUrl = firstText(config.baseUrl, DEFAULTS.baseUrl).replace(/\/+$/, '') + '/';
+    var facebookUrl = firstText(config.facebookUrl, DEFAULTS.facebookUrl);
+    return Object.freeze({
+      artistName: firstText(config.artistName, DEFAULTS.artistName),
+      artistUrl: firstText(config.artistUrl, DEFAULTS.artistUrl),
+      organizationName: firstText(config.organizationName, DEFAULTS.organizationName),
+      websiteUrl: baseUrl,
+      sameAs: uniqueTexts([facebookUrl].concat(config.sameAs || []))
+    });
+  }
+
   return Object.freeze({
     DEFAULTS: DEFAULTS,
     cleanText: cleanText,
@@ -217,6 +238,7 @@
     generateKeywords: generateKeywords,
     generateCanonical: generateCanonical,
     generateAlt: generateAlt,
-    slugGenerator: slugGenerator
+    slugGenerator: slugGenerator,
+    generateEntityProfile: generateEntityProfile
   });
 });
