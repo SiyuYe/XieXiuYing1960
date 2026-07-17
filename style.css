@@ -436,3 +436,30 @@ body[data-page="home"] #featuredWorks .home-art-separator{
   body[data-page="home"] #featuredWorks .home-art-detail,
   body[data-page="home"] #featuredWorks .home-art-separator{font-size:12px}
 }
+
+/* CMS V8.1.1：桌面版橫幅固定高度，不隨視窗寬度縮放；不足寬度以近似底色補齊 */
+@media (min-width: 901px){
+  .museum-banner-frame{
+    height:410px;
+    overflow:hidden;
+    background:#f4e9dd;
+  }
+  .museum-banner-link{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:100%;
+    height:100%;
+    background:#f4e9dd;
+  }
+  .museum-banner-image{
+    display:block;
+    width:auto;
+    height:410px;
+    max-width:none;
+    flex:0 0 auto;
+    object-fit:contain;
+    object-position:center center;
+    background:transparent;
+  }
+}
