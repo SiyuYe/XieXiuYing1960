@@ -977,7 +977,7 @@ function openArtwork(id) { var a = artworks.find(function (x) { return String(x.
     modal = document.createElement('div');
     modal.id = 'artModal';
     modal.className = 'modal-backdrop';
-    modal.innerHTML = '<div class="art-modal protected-image" data-watermark="謝秀英"><button class="modal-close" aria-label="關閉">×</button><div class="art-modal-image"><img draggable="false" loading="eager" decoding="async" fetchpriority="high"></div><div class="art-modal-copy"></div></div>';
+    modal.innerHTML = '<div class="art-modal protected-image"><button class="modal-close" aria-label="關閉">×</button><div class="art-modal-image"><img draggable="false" loading="eager" decoding="async" fetchpriority="high"></div><div class="art-modal-copy"></div></div>';
     document.body.appendChild(modal);
     modal.querySelector('.modal-close').onclick = function () { modal.classList.remove('open'); restoreArtworkSeo_(); };
     modal.onclick = function (e) { if (e.target === modal) {
