@@ -255,7 +255,9 @@ body[data-page="home"] .artist-profile-overlay .btn{padding:9px 12px;font-size:1
 .page-loading{text-align:center;padding:18px;margin:0!important}
 @media(max-width:900px){.museum-banner-frame{height:clamp(300px,42vw,430px)}.museum-banner-image{object-position:center 42%}}
 @media(max-width:620px){
- .museum-banner-frame{height:auto;aspect-ratio:2/1}.museum-banner-image{object-fit:contain;object-position:center}
+ .museum-banner-frame{height:180px;overflow:hidden;background:#f5ecdf}
+ .museum-banner-link{display:flex;align-items:center;justify-content:center;width:100%;height:100%}
+ .museum-banner-image{width:100%;height:100%;object-fit:cover;object-position:center center;background:transparent}
  .museum-nav-shell{width:100%;margin:0;padding:7px 0 8px;border-radius:0;background:#fff}
  .museum-nav-shell .main-nav{justify-content:flex-start;padding:4px 24px 10px}
  .current-gallery-info{width:calc(100% - 24px)}
