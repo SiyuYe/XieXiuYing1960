@@ -697,7 +697,7 @@ function artInfoHtml(a) { var titles = titleLines(a), infos = infoLines(a); retu
 function card(a, imageIndex) {
     if (imageIndex === void 0) { imageIndex = 1; }
     var first = imageIndex === 0, sources = artworkImageSources_(a, '1200');
-    return "<button class=\"art-card protected-image\" type=\"button\" data-watermark=\"\u8B1D\u79C0\u82F1\" data-art-id=\"".concat(esc(a.id || a.artworkId || ''), "\"><img src=\"").concat(esc(sources.primary), "\" ").concat(imageFallbackAttrs_(sources), " alt=\"").concat(esc(artworkAlt_(a)), "\" draggable=\"false\" loading=\"").concat(first ? 'eager' : 'lazy', "\" decoding=\"async\" fetchpriority=\"").concat(first ? 'high' : 'low', "\" width=\"1200\" height=\"1200\">").concat(artInfoHtml(a), "</button>");
+    return "<button class=\"art-card protected-image\" type=\"button\" data-art-id=\"".concat(esc(a.id || a.artworkId || ''), "\"><img src=\"").concat(esc(sources.primary), "\" ").concat(imageFallbackAttrs_(sources), " alt=\"").concat(esc(artworkAlt_(a)), "\" draggable=\"false\" loading=\"").concat(first ? 'eager' : 'lazy', "\" decoding=\"async\" fetchpriority=\"").concat(first ? 'high' : 'low', "\" width=\"1200\" height=\"1200\">").concat(artInfoHtml(a), "</button>");
 }
 function clearPagedArtGrid_(host) {
     if (!host)
@@ -969,7 +969,7 @@ function initArtSections() {
     }
     var featured = document.querySelector('#featuredWorks');
     if (featured)
-        featured.innerHTML = feat.slice(0, 8).map(function (a, i) { var first = i === 0, sources = artworkImageSources_(a, '1200'); return "<button class=\"art-card protected-image\" type=\"button\" data-watermark=\"\u8B1D\u79C0\u82F1\" data-art-id=\"".concat(esc(a.id || a.artworkId || ''), "\"><img src=\"").concat(esc(sources.primary), "\" ").concat(imageFallbackAttrs_(sources), " alt=\"").concat(esc(artworkAlt_(a)), "\" draggable=\"false\" loading=\"").concat(first ? 'eager' : 'lazy', "\" decoding=\"async\" fetchpriority=\"").concat(first ? 'high' : 'low', "\" width=\"1200\" height=\"1200\">").concat(featuredArtInfoHtml(a), "</button>"); }).join('');
+        featured.innerHTML = feat.slice(0, 8).map(function (a, i) { var first = i === 0, sources = artworkImageSources_(a, '1200'); return "<button class=\"art-card protected-image\" type=\"button\" data-art-id=\"".concat(esc(a.id || a.artworkId || ''), "\"><img src=\"").concat(esc(sources.primary), "\" ").concat(imageFallbackAttrs_(sources), " alt=\"").concat(esc(artworkAlt_(a)), "\" draggable=\"false\" loading=\"").concat(first ? 'eager' : 'lazy', "\" decoding=\"async\" fetchpriority=\"").concat(first ? 'high' : 'low', "\" width=\"1200\" height=\"1200\">").concat(featuredArtInfoHtml(a), "</button>"); }).join('');
     var gallery = document.querySelector('#galleryGrid');
     if (gallery)
         renderPagedArtGrid_(gallery, shuffle(artworks.filter(function (a) { return a.gallery === true || truth(a.isGallery); })), '目前尚無公開線上藝廊作品。');

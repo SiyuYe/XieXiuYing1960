@@ -1,4 +1,4 @@
-// CMS V8.1.2：清除舊快取並停用舊 Service Worker。
+// CMS V8.1.3：清除舊快取並停用舊 Service Worker。
 self.addEventListener('install',function(){self.skipWaiting();});
 self.addEventListener('activate',function(event){
  event.waitUntil(
