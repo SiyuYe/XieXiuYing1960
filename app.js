@@ -56,7 +56,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
 };
 // 謝秀英藝術館 CMS v7.5
 var DATA_VERSION = 'cms-v7.9.0-step9b';
-var CACHE_CLEANUP_VERSION = 'xxy.cacheCleanup.v7909b';
+var CACHE_CLEANUP_VERSION = 'xxy.cacheCleanup.v8120';
 var IMAGE_PLACEHOLDER = 'assets/images/art-placeholder-clean.svg';
 var CDN_REPO_BASE = 'https://cdn.jsdelivr.net/gh/siyuye/XieXiuYing1960@main/';
 var GITHUB_PAGES_BASE = 'https://siyuye.github.io/XieXiuYing1960/';
@@ -67,6 +67,7 @@ var SITE_VERSION_FILE = 'data/site-version.json';
 var SITE_DATA_CACHE_PREFIX = 'xxy.siteData.';
 var SITE_DATA_CURRENT_VERSION_KEY = 'xxy.siteData.currentVersion';
 var SITE_VERSION_CACHE_KEY = 'xxy.siteVersion.latest';
+var artworkAssetVersion = DATA_VERSION;
 var siteConfig = null, homeData = null, pageData = null, artworks = [], exhibitions = [], historyItems = [], books = [], galleryShows = [], imageManifest = { artworks: {}, artworkOrder: [], teacherPhotos: { 1600: ['images/yingphoto/1600/xiexiuying001.webp'], 600: ['images/yingphoto/600/xiexiuying001.webp'] } };
 var ART_BATCH_SIZE = 16;
 var heroTimer = null, uiEffectsReady = false;
@@ -361,28 +362,46 @@ function directImageUrl(url) {
 }
 function normalizeArtworkId(a) { return String((a === null || a === void 0 ? void 0 : a.artworkId) || (a === null || a === void 0 ? void 0 : a.id) || '').trim().toUpperCase(); }
 function validArtworkImageId_(id) { return /^[A-Z0-9_-]+$/.test(String(id || '')); }
+function appendArtworkVersion_(url) {
+    var value = String(url || '').trim();
+    if (!value || value.indexOf('art-placeholder-clean.svg') >= 0)
+        return value;
+    var version = String(artworkAssetVersion || DATA_VERSION || '').trim();
+    if (!version)
+        return value;
+    try {
+        var parsed = new URL(value, location.href);
+        parsed.searchParams.set('v', version);
+        if (/^[a-z][a-z0-9+.-]*:/i.test(value) || value.indexOf('//') === 0)
+            return parsed.href;
+        return parsed.pathname.replace(/^\/XieXiuYing1960\//, '') + parsed.search + parsed.hash;
+    }
+    catch (_) {
+        return value + (value.indexOf('?') >= 0 ? '&' : '?') + 'v=' + encodeURIComponent(version);
+    }
+}
 function staticArtworkUrl(a, size) {
     if (size === void 0) { size = '1200'; }
     var id = normalizeArtworkId(a);
-    return validArtworkImageId_(id) ? "images/artworks/".concat(size, "/").concat(id, ".webp") : '';
+    return validArtworkImageId_(id) ? appendArtworkVersion_("images/artworks/".concat(size, "/").concat(id, ".webp")) : '';
 }
 function cdnArtworkUrl_(a, size) {
     if (size === void 0) { size = '1200'; }
     var id = normalizeArtworkId(a);
-    return validArtworkImageId_(id) ? "".concat(CDN_REPO_BASE, "images/artworks/").concat(size, "/").concat(id, ".webp") : '';
+    return validArtworkImageId_(id) ? appendArtworkVersion_("".concat(CDN_REPO_BASE, "images/artworks/").concat(size, "/").concat(id, ".webp")) : '';
 }
 function githubArtworkFallback_(a, size) {
     if (size === void 0) { size = '1200'; }
     var explicit = size === '2400' ? (a.imageUrl || '') : (a.thumbUrl || a.imageUrl || '');
     var value = String(explicit || '').trim();
     if (value)
-        return value;
+        return appendArtworkVersion_(value);
     return staticArtworkUrl(a, size) || '';
 }
 function artworkImageSources_(a, size) {
     if (size === void 0) { size = '1200'; }
     var cdnField = size === '2400' ? (a.CDNimageUrl || a.cdnImageUrl || '') : (a.CDNthumbUrl || a.cdnThumbUrl || '');
-    var primary = String(cdnField || '').trim() || cdnArtworkUrl_(a, size);
+    var primary = appendArtworkVersion_(String(cdnField || '').trim()) || cdnArtworkUrl_(a, size);
     var fallback = githubArtworkFallback_(a, size);
     return { primary: primary || fallback || IMAGE_PLACEHOLDER, fallback: fallback && fallback !== primary ? fallback : '', final: IMAGE_PLACEHOLDER };
 }
@@ -421,6 +440,7 @@ function normalizeSiteData_(bundle) {
         throw new Error('site-data.json 格式不正確或尚未發布');
     if (Number(bundle.schemaVersion) !== 1)
         throw new Error('site-data.json schemaVersion 不支援');
+    artworkAssetVersion = String(bundle.dataVersion || bundle.version || DATA_VERSION).trim() || DATA_VERSION;
     var settings = bundle.settings || {};
     var base = defaultPublicConfig_();
     var config = __assign(__assign(__assign({}, base), (bundle.config || {})), { version: bundle.dataVersion || bundle.version || DATA_VERSION, backendMode: 'staticJson', brand: __assign(__assign(__assign({}, (base.brand || {})), ((bundle.config && bundle.config.brand) || {})), { zh: settings.artistNameZh || ((bundle.config && bundle.config.brand && bundle.config.brand.zh) || base.brand.zh), en: settings.artistNameEn || ((bundle.config && bundle.config.brand && bundle.config.brand.en) || base.brand.en), mark: settings.artistMark || ((bundle.config && bundle.config.brand && bundle.config.brand.mark) || base.brand.mark), siteName: settings.siteName || ((bundle.config && bundle.config.brand && bundle.config.brand.siteName) || base.brand.siteName) }), nav: Array.isArray(settings.nav) ? settings.nav : ((bundle.config && bundle.config.nav) || base.nav), homeQuickNav: Array.isArray(settings.homeQuickNav) ? settings.homeQuickNav : ((bundle.config && bundle.config.homeQuickNav) || base.homeQuickNav), facebookUrl: settings.facebookUrl || ((bundle.config && bundle.config.facebookUrl) || base.facebookUrl), contactReasons: Array.isArray(settings.contactReasons) ? settings.contactReasons : ((bundle.config && bundle.config.contactReasons) || base.contactReasons), showNotice: settings.showNotice === true });
