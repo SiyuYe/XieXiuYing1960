@@ -1,6 +1,6 @@
 // 謝秀英藝術館 CMS v7.5
 const DATA_VERSION='cms-v7.9.0-step9b';
-const CACHE_CLEANUP_VERSION='xxy.cacheCleanup.v8120';
+const CACHE_CLEANUP_VERSION='xxy.cacheCleanup.v8140';
 const IMAGE_PLACEHOLDER='assets/images/art-placeholder-clean.svg';
 const CDN_REPO_BASE='https://cdn.jsdelivr.net/gh/siyuye/XieXiuYing1960@main/';
 const GITHUB_PAGES_BASE='https://siyuye.github.io/XieXiuYing1960/';
@@ -209,10 +209,11 @@ function githubArtworkFallback_(a,size='1200'){
  return staticArtworkUrl(a,size)||'';
 }
 function artworkImageSources_(a,size='1200'){
+ const githubPrimary=githubArtworkFallback_(a,size);
  const cdnField=size==='2400'?(a.CDNimageUrl||a.cdnImageUrl||''):(a.CDNthumbUrl||a.cdnThumbUrl||'');
- const primary=appendArtworkVersion_(String(cdnField||'').trim())||cdnArtworkUrl_(a,size);
- const fallback=githubArtworkFallback_(a,size);
- return {primary:primary||fallback||IMAGE_PLACEHOLDER,fallback:fallback&&fallback!==primary?fallback:'',final:IMAGE_PLACEHOLDER};
+ const cdnFallback=appendArtworkVersion_(String(cdnField||'').trim())||cdnArtworkUrl_(a,size);
+ const primary=githubPrimary||cdnFallback||IMAGE_PLACEHOLDER;
+ return {primary,fallback:cdnFallback&&cdnFallback!==primary?cdnFallback:'',final:IMAGE_PLACEHOLDER};
 }
 function teacherLocalPath_(path,size){
  const value=String(path||'').trim();
