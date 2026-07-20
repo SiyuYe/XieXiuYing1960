@@ -1,6 +1,19 @@
 name: Sync Site Data
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - "templates/artwork-page.html"
+      - "artwork-share.js"
+      - "app.js"
+      - "src/app.source.js"
+      - "style.css"
+      - "scripts/generate_artwork_pages.py"
+      - "scripts/test_generate_artwork_pages.py"
+      - "scripts/test_artwork_share.py"
+      - ".github/workflows/sync-site-data.yml"
   schedule:
     # GitHub Actions 使用 UTC；每週日 19:00 UTC = 台灣每週一凌晨 03:00。
     - cron: "0 19 * * 0"

@@ -474,3 +474,134 @@ body[data-page="home"] #featuredWorks .home-art-separator{
 
 /* CMS V8.2.2 STEP 3：作品分享流程 */
 .btn.share{border:1px solid var(--main);background:#fff;color:var(--main-deep);cursor:pointer}.btn.share:hover{background:#eef8f7}.art-modal-actions{margin-top:18px}.art-modal-actions .btn{margin:0;width:100%}html.artwork-share-open{overflow:hidden}.artwork-share-backdrop{position:fixed;inset:0;z-index:420;display:none;place-items:center;padding:20px;background:rgba(15,35,33,.72)}.artwork-share-backdrop.open{display:grid}.artwork-share-panel{position:relative;width:min(520px,calc(100vw - 32px));padding:30px;border-radius:26px;background:#fff;box-shadow:0 24px 80px rgba(0,0,0,.3)}.artwork-share-panel h2{margin:4px 48px 4px 0}.artwork-share-name{margin:0 0 20px;color:var(--muted)}.artwork-share-close{position:absolute;right:14px;top:14px;width:42px;height:42px;border:0;border-radius:50%;background:#eef6f5;font-size:28px;cursor:pointer}.artwork-share-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.share-option{display:flex;align-items:center;justify-content:center;min-height:50px;padding:12px 16px;border:1px solid var(--line);border-radius:15px;background:#fff;color:var(--main-deep);font:inherit;font-weight:900;text-decoration:none;cursor:pointer}.share-option:hover{border-color:var(--main);background:#eef8f7}.artwork-share-help{margin:16px 0 0;font-size:14px;color:var(--muted)}.artwork-share-toast{position:fixed;left:50%;bottom:28px;z-index:500;transform:translate(-50%,20px);padding:12px 18px;border-radius:999px;background:#173c38;color:#fff;opacity:0;pointer-events:none;transition:.2s}.artwork-share-toast.show{transform:translate(-50%,0);opacity:1}@media(max-width:620px){.artwork-share-panel{padding:24px 20px}.artwork-share-options{grid-template-columns:1fr}.artwork-page-actions .btn.share{width:100%}}
+
+/* CMS V8.2.4 STEP3：作品頁入口與分享平台辨識圖示 */
+.art-modal-actions{display:grid;gap:10px}
+.art-modal-actions .btn{display:flex;align-items:center;justify-content:center}
+.share-option{gap:10px}
+.share-brand-icon{display:inline-flex;align-items:center;justify-content:center;flex:0 0 26px;width:26px;height:26px;border-radius:8px;font-size:15px;font-weight:900;line-height:1;color:#fff}
+.icon-facebook{background:#1877f2;font-family:Arial,sans-serif;font-size:20px}
+.icon-line{background:#06c755;font-family:Arial,sans-serif;font-size:13px}
+.icon-x{background:#111;font-size:16px}
+.icon-instagram{background:linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045);font-size:21px}
+.icon-wechat{background:#07c160;font-size:13px}
+.icon-copy{background:#eef8f7;color:var(--main-deep);font-size:15px}
+
+
+/* CMS V8.2.5：作品資訊將媒材固定獨立為第四行 */
+.art-info .art-medium-line{display:block;}
+body[data-page="works"] .gallery-grid .art-card .art-medium-line,
+body[data-page="gallery"] .gallery-grid .art-card .art-medium-line{
+  margin-top:-3px!important;
+}
+
+/* V8.2.6：首頁藝術焦點輪播改為圖片、導覽箭頭、作品說明完全分離 */
+body[data-page="home"] .hero-art{
+  display:grid!important;
+  grid-template-columns:48px minmax(0,1fr) 48px;
+  grid-template-rows:minmax(0,1fr) auto;
+  grid-template-areas:
+    "prev image next"
+    "caption caption caption";
+  align-items:center;
+  gap:0 8px;
+  min-height:470px!important;
+  height:470px!important;
+  padding:18px 14px 0;
+  overflow:hidden;
+  background:#f4f8f7;
+}
+body[data-page="home"] .hero-art > img,
+body[data-page="home"] .hero-art #heroImage{
+  grid-area:image;
+  align-self:stretch;
+  justify-self:stretch;
+  width:100%!important;
+  height:100%!important;
+  min-height:0!important;
+  max-height:none!important;
+  object-fit:contain!important;
+  object-position:center center!important;
+  background:#f4f8f7;
+}
+body[data-page="home"] .hero-art .slider-btn{
+  position:static!important;
+  transform:none!important;
+  align-self:center;
+  justify-self:center;
+  width:32px!important;
+  min-width:32px;
+  height:58px!important;
+  padding:0;
+  display:grid;
+  place-items:center;
+  border:1px solid rgba(107,194,186,.18);
+  border-radius:999px;
+  background:rgba(255,255,255,.9);
+  box-shadow:0 8px 22px rgba(42,77,74,.10);
+  font-size:31px;
+  line-height:1;
+  cursor:pointer;
+}
+body[data-page="home"] .hero-art .slider-btn.prev{grid-area:prev;}
+body[data-page="home"] .hero-art .slider-btn.next{grid-area:next;}
+body[data-page="home"] .hero-art .slide-caption{
+  grid-area:caption;
+  position:static!important;
+  inset:auto!important;
+  width:100%;
+  min-width:0;
+  margin:0;
+  padding:13px 18px 15px;
+  border-radius:22px 22px 0 0;
+  background:rgba(255,255,255,.94);
+  backdrop-filter:none;
+  border-top:1px solid rgba(107,194,186,.14);
+  box-shadow:none;
+}
+body[data-page="home"] .hero-art .slide-caption strong{
+  display:block;
+  font-size:18px;
+  line-height:1.25;
+}
+body[data-page="home"] .hero-art .slide-caption small{
+  display:block;
+  margin-top:4px;
+  color:var(--muted);
+  line-height:1.45;
+}
+@media(max-width:900px){
+  body[data-page="home"] .hero-art{
+    height:430px!important;
+    min-height:430px!important;
+    grid-template-columns:42px minmax(0,1fr) 42px;
+    padding:14px 10px 0;
+    gap:0 6px;
+  }
+  body[data-page="home"] .hero-art .slider-btn{
+    width:30px!important;
+    min-width:30px;
+    height:54px!important;
+  }
+}
+@media(max-width:620px){
+  body[data-page="home"] .hero-art{
+    height:350px!important;
+    min-height:350px!important;
+    grid-template-columns:34px minmax(0,1fr) 34px;
+    padding:10px 7px 0;
+    gap:0 4px;
+    border-radius:28px;
+  }
+  body[data-page="home"] .hero-art .slider-btn{
+    width:26px!important;
+    min-width:26px;
+    height:48px!important;
+    font-size:27px;
+  }
+  body[data-page="home"] .hero-art .slide-caption{
+    padding:10px 12px 12px;
+  }
+  body[data-page="home"] .hero-art .slide-caption strong{font-size:16px;}
+  body[data-page="home"] .hero-art .slide-caption small{font-size:13px;line-height:1.35;}
+}
