@@ -10,7 +10,7 @@ V8.2 STEP 1 + STEP 2 responsibilities:
 - generate Canonical, Open Graph, Twitter Card and VisualArtwork JSON-LD;
 - print a complete summary suitable for GitHub Actions logs.
 
-Share controls remain STEP 3 work.
+STEP 3 adds share controls for mobile Web Share API and desktop share/copy flow.
 """
 from __future__ import annotations
 
@@ -248,6 +248,8 @@ def render(template: str, artwork: dict[str, Any]) -> tuple[str, dict[str, str]]
         "{{DETAIL_ROWS}}": detail_rows(artwork),
         "{{DESCRIPTION_BLOCK}}": f'<section class="artwork-description"><h2>作品介紹</h2><p>{html.escape(description).replace(chr(10), "<br>")}</p></section>' if description else "",
         "{{MODAL_URL}}": html.escape(modal_url, quote=True),
+        "{{SHARE_TITLE}}": html.escape(page_title, quote=True),
+        "{{SHARE_TEXT}}": html.escape(meta_description, quote=True),
     }
     page = template
     for key, value in replacements.items():
