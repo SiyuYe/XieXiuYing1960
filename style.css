@@ -605,3 +605,32 @@ body[data-page="home"] .hero-art .slide-caption small{
   body[data-page="home"] .hero-art .slide-caption strong{font-size:16px;}
   body[data-page="home"] .hero-art .slide-caption small{font-size:13px;line-height:1.35;}
 }
+
+
+/* V8.2.9：手機作品卡片操作列並排與緊湊化 */
+.art-action-label-mobile{display:none}
+@media(max-width:620px){
+  .art-modal{grid-template-rows:minmax(0,1fr) auto}
+  .art-modal-copy{
+    max-height:none;
+    overflow-y:visible;
+    padding:14px 18px 14px;
+    padding-right:54px;
+    gap:4px;
+  }
+  .art-modal-actions{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:6px;
+    margin-top:6px;
+  }
+  .art-modal-actions .btn{
+    width:100%;
+    min-width:0;
+    margin:0;
+    padding:10px 7px;
+    font-size:14px;
+    white-space:nowrap;
+  }
+  .art-action-label-desktop{display:none}
+  .art-action-label-mobile{display:inline}
+}
