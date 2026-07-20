@@ -634,3 +634,41 @@ body[data-page="home"] .hero-art .slide-caption small{
   .art-action-label-desktop{display:none}
   .art-action-label-mobile{display:inline}
 }
+
+
+/* V8.2.10：手機作品卡片對稱留白＋獨立作品頁按鈕統一 */
+.artwork-page-actions{
+  display:grid;
+  grid-template-columns:1fr;
+  width:min(100%,250px);
+  gap:10px;
+  margin-top:30px;
+}
+.artwork-page-actions .btn{
+  width:100%;
+  min-height:52px;
+  margin:0;
+  padding:12px 18px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+}
+@media(max-width:620px){
+  .art-modal-copy{
+    padding:14px 24px 16px;
+  }
+  .art-modal-actions{
+    width:100%;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+    margin-top:6px;
+  }
+  .art-modal-actions .btn{
+    width:100%;
+    min-width:0;
+  }
+  .artwork-page-actions{
+    width:100%;
+  }
+}

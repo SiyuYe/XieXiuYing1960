@@ -18,7 +18,9 @@ def main() -> None:
     style = (ROOT / "style.css").read_text(encoding="utf-8")
 
     require(template, "← 返回作品集", "獨立作品頁缺少新版返回作品集文字")
-    require(template, "🔍 在作品集卡片中查看", "獨立作品頁缺少新版作品集卡片文字")
+    require(template, "🔍 作品集卡片頁面", "獨立作品頁缺少新版作品集卡片文字")
+    if not (template.index("🔍 作品集卡片頁面") < template.index("← 返回作品集") < template.index("🔗 分享作品")):
+        raise AssertionError("獨立作品頁按鈕排列順序不正確")
     require(template, "data-share-artwork", "獨立作品頁缺少分享按鈕")
     if '<p class="eyebrow">ARTWORK</p>' in template:
         raise AssertionError("獨立作品頁仍顯示 ARTWORK 標籤")
@@ -53,6 +55,7 @@ def main() -> None:
         page = (ROOT / filename).read_text(encoding="utf-8")
         require(page, "artwork-share.js?v=8280", f"{filename} 未載入分享程式")
         require(page, "app.js?v=8290", f"{filename} 未更新 app.js 版本")
+        require(page, "style.css?v=82100", f"{filename} 未更新 V8.2.10 樣式版本")
 
     print("STEP 3 分享流程自動化驗收全部通過")
 
