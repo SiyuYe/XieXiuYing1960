@@ -32,7 +32,7 @@
   function open(payload,trigger){
     payload=payload||{};payload.url=payload.url||location.href;payload.title=payload.title||document.title;payload.text=payload.text||payload.title;
     if(isMobileShare()){
-      navigator.share({title:payload.title,text:payload.text,url:payload.url}).catch(function(err){if(!err||err.name!=='AbortError')desktop(payload,trigger);});
+      navigator.share({url:payload.url}).catch(function(err){if(!err||err.name!=='AbortError')desktop(payload,trigger);});
       return;
     }
     desktop(payload,trigger);

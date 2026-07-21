@@ -56,7 +56,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
 };
 // 謝秀英藝術館 CMS v7.5
 var DATA_VERSION = 'cms-v7.9.0-step9b';
-var CACHE_CLEANUP_VERSION = 'xxy.cacheCleanup.v8140';
+var CACHE_CLEANUP_VERSION = 'xxy.cacheCleanup.v82110';
 var IMAGE_PLACEHOLDER = 'assets/images/art-placeholder-clean.svg';
 var CDN_REPO_BASE = 'https://cdn.jsdelivr.net/gh/siyuye/XieXiuYing1960@main/';
 var GITHUB_PAGES_BASE = 'https://siyuye.github.io/XieXiuYing1960/';
@@ -154,7 +154,7 @@ function cleanupLegacyCachesOnce_() {
             var key = localStorage.key(i) || '';
             if (preserve[key])
                 continue;
-            if (key.indexOf('xxy.static.') === 0 || key.indexOf('xxy.siteBundle.') === 0 || key.indexOf('xxy.cms.v') === 0 || key === 'xxy.cms.authError')
+            if (key.indexOf('xxy.static.') === 0 || key.indexOf('xxy.siteBundle.') === 0 || key.indexOf('xxy.cms.v') === 0 || key.indexOf(SITE_DATA_CACHE_PREFIX) === 0 || key === SITE_DATA_CURRENT_VERSION_KEY || key === SITE_VERSION_CACHE_KEY || key === 'xxy.cms.authError')
                 remove.push(key);
         }
         remove.forEach(function (key) { localStorage.removeItem(key); });
@@ -296,8 +296,8 @@ function fetchSiteDataByVersion_(version) {
                     _a.label = 1;
                 case 1:
                     _a.trys.push([1, 3, , 4]);
-                    dataUrl = SITE_DATA_FILE + '?v=' + encodeURIComponent(normalizedVersion);
-                    return [4 /*yield*/, fetchJsonRequest_(dataUrl, 'default')];
+                    dataUrl = SITE_DATA_FILE + '?v=' + encodeURIComponent(normalizedVersion) + '&t=' + Date.now();
+                    return [4 /*yield*/, fetchJsonRequest_(dataUrl, 'no-store')];
                 case 2:
                     data = _a.sent();
                     writeJsonStorage_(cacheKey, data);
@@ -1007,7 +1007,7 @@ function openArtwork(id) { var a = artworks.find(function (x) { return String(x.
         modal.classList.remove('open');
         restoreArtworkSeo_();
     } };
-} var modalImage = modal.querySelector('img'), sources = artworkImageSources_(a, '2400'); modalImage.removeAttribute('src'); modalImage.dataset.fallbackSrc = sources.fallback || ''; modalImage.dataset.finalFallback = sources.final || IMAGE_PLACEHOLDER; modalImage.dataset.fallbackStep = '0'; modalImage.alt = artworkAlt_(a); var aid = String(a.artworkId || a.id || '').trim(), shareUrl = 'https://siyuye.github.io/XieXiuYing1960/works/' + encodeURIComponent(aid) + '.html', shareTitle = (a.titleZh || a.nameZh || a.title || aid) + '｜謝秀英作品'; modal.querySelector('.art-modal-copy').innerHTML = artInfoHtml(a) + (a.description ? "<p class=\"multiline\">".concat(nl(a.description), "</p>") : '') + '<div class="art-modal-actions"><a class="btn ghost" href="' + esc(shareUrl) + '"><span class="art-action-label-desktop">🔍 查看作品頁面</span><span class="art-action-label-mobile">🔍 作品頁面</span></a><button class="btn share" type="button" data-share-artwork data-share-title="' + esc(shareTitle) + '" data-share-text="' + esc(shareTitle) + '" data-share-url="' + esc(shareUrl) + '">🔗 分享作品</button></div>'; if (window.XxyArtworkShare) window.XxyArtworkShare.bind(modal); applyArtworkSeo_(a); modal.classList.add('open'); requestAnimationFrame(function () { modalImage.src = sources.primary; }); }
+} var modalImage = modal.querySelector('img'), sources = artworkImageSources_(a, '2400'); modalImage.removeAttribute('src'); modalImage.dataset.fallbackSrc = sources.fallback || ''; modalImage.dataset.finalFallback = sources.final || IMAGE_PLACEHOLDER; modalImage.dataset.fallbackStep = '0'; modalImage.alt = artworkAlt_(a); var aid = String(a.artworkId || a.id || '').trim(), shareUrl = 'https://siyuye.github.io/XieXiuYing1960/works/' + encodeURIComponent(aid) + '.html?share=' + encodeURIComponent(String(artworkAssetVersion || DATA_VERSION || '')), shareTitle = (a.titleZh || a.nameZh || a.title || aid) + '｜謝秀英作品'; modal.querySelector('.art-modal-copy').innerHTML = artInfoHtml(a) + (a.description ? "<p class=\"multiline\">".concat(nl(a.description), "</p>") : '') + '<div class="art-modal-actions"><a class="btn ghost" href="' + esc(shareUrl) + '"><span class="art-action-label-desktop">🔍 查看作品頁面</span><span class="art-action-label-mobile">🔍 作品頁面</span></a><button class="btn share" type="button" data-share-artwork data-share-title="' + esc(shareTitle) + '" data-share-text="' + esc(shareTitle) + '" data-share-url="' + esc(shareUrl) + '">🔗 分享作品</button></div>'; if (window.XxyArtworkShare) window.XxyArtworkShare.bind(modal); applyArtworkSeo_(a); modal.classList.add('open'); requestAnimationFrame(function () { modalImage.src = sources.primary; }); }
 function renderExhibitions() { var host = document.querySelector('#exhibitionTimeline'); if (!host)
     return; var rows = (exhibitions || []).filter(function (r) { return r.isPublic == null || truth(r.isPublic); }).sort(function (a, b) { return (Number(b.year || 0) - Number(a.year || 0)) || (Number(a.sort || 0) - Number(b.sort || 0)); }); host.innerHTML = rows.map(function (r) { return "<article class=\"exhibition-row\"><time>".concat(esc(r.year || r.date || ''), "</time><strong>").concat(esc(r.title || ''), "</strong><span>").concat(esc(r.location || ''), "</span><span>").concat(esc(r.type || ''), "</span></article>"); }).join(''); }
 function renderHistory() { var host = document.querySelector('#historyCards'); if (!host)

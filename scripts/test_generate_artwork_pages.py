@@ -60,22 +60,28 @@ def main() -> None:
         html_text = page.read_text(encoding="utf-8")
         assert MARKER in html_text, "產生頁缺少標記"
         canonical = "https://siyuye.github.io/XieXiuYing1960/works/XH0001.html"
-        image = "https://siyuye.github.io/XieXiuYing1960/artworks/2400/XH0001.webp"
+        display_image = "https://siyuye.github.io/XieXiuYing1960/artworks/2400/XH0001.webp?v=TEST001"
+        preview_image = "https://siyuye.github.io/XieXiuYing1960/images/artworks/1200/XH0001.webp?v=TEST001"
         assert f'<link rel="canonical" href="{canonical}">' in html_text, "Canonical 錯誤"
         assert f'<meta property="og:url" content="{canonical}">' in html_text, "og:url 錯誤"
-        assert f'<meta property="og:image" content="{image}">' in html_text, "og:image 必須為絕對網址"
+        assert f'<meta property="og:image" content="{preview_image}">' in html_text, "og:image 必須使用 1200 圖庫且為絕對、版本化網址"
+        assert f'<meta name="twitter:image" content="{preview_image}">' in html_text, "twitter:image 必須使用 1200 圖庫"
+        assert f'<img src="{display_image}"' in html_text, "作品頁大圖來源不應被社群預覽圖修改"
+        assert f'data-share-url="{canonical}?share=TEST001"' in html_text, "分享網址必須帶資料版本"
         assert '<meta name="twitter:card" content="summary_large_image">' in html_text, "Twitter Card 缺失"
         match = re.search(r'<script type="application/ld\+json">(.*?)</script>', html_text, re.S)
         assert match, "JSON-LD 缺失"
         structured = json.loads(match.group(1))
         assert structured["@type"] == "VisualArtwork", "JSON-LD 類型錯誤"
         assert structured["url"] == canonical, "JSON-LD URL 錯誤"
-        assert structured["image"] == image, "JSON-LD 圖片錯誤"
+        assert structured["image"] == preview_image, "JSON-LD 必須使用 1200 預覽圖"
         assert structured["creator"]["name"] == "謝秀英", "JSON-LD creator 錯誤"
         manifest = json.loads((work / "manifest.json").read_text(encoding="utf-8"))
         assert manifest["schemaVersion"] == 2
         assert manifest["count"] == 1
         assert manifest["pages"][0]["canonical"] == canonical
+        assert manifest["pages"][0]["image"] == display_image
+        assert manifest["pages"][0]["socialPreviewImage"] == preview_image
 
         # A stale generated page must be deleted; a manually maintained page must survive.
         stale = work / "works" / "XH9999.html"

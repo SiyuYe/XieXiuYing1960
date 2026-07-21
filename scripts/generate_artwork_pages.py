@@ -22,7 +22,7 @@ import sys
 import tempfile
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote, urljoin, urlparse
+from urllib.parse import parse_qsl, quote, urlencode, urljoin, urlparse, urlunparse
 
 BASE_URL = "https://siyuye.github.io/XieXiuYing1960/"
 SITE_NAME = "謝秀英書畫藝術館"
@@ -77,13 +77,35 @@ def absolute_url(value: Any) -> str:
     return urljoin(BASE_URL, raw.lstrip("/"))
 
 
-def image_url(artwork: dict[str, Any]) -> str:
-    # Match V8.1.4 GitHub Pages-primary field preference.
-    direct = artwork.get("imageUrl") or artwork.get("thumbUrl") or artwork.get("image")
+def append_version_query(url: str, version: str, key: str = "v") -> str:
+    if not url or not version:
+        return url
+    parsed = urlparse(url)
+    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    query[key] = version
+    return urlunparse(parsed._replace(query=urlencode(query)))
+
+
+def image_url(artwork: dict[str, Any], data_version: str = "") -> str:
+    # 官網作品頁大圖維持原有來源，不因社群預覽圖調整而改變。
+    direct = artwork.get("imageUrl") or artwork.get("image") or artwork.get("thumbUrl")
     if direct:
-        return absolute_url(direct)
+        return append_version_query(absolute_url(direct), data_version)
     aid = artwork_id(artwork)
-    return urljoin(BASE_URL, f"artworks/2400/{quote(aid)}.webp")
+    return append_version_query(urljoin(BASE_URL, f"images/artworks/2400/{quote(aid)}.webp"), data_version)
+
+
+def social_preview_image_url(artwork: dict[str, Any], data_version: str = "") -> str:
+    """Return the existing 1200-long-edge artwork for link preview metadata.
+
+    V8.2.12 intentionally keeps the artwork page/display image independent from
+    Open Graph, Twitter Card and JSON-LD preview images.  The preview always
+    points to the site's original 1200 library so Facebook does not download
+    the 2400 artwork merely to build a link card.
+    """
+    aid = artwork_id(artwork)
+    preview = urljoin(BASE_URL, f"images/artworks/1200/{quote(aid)}.webp")
+    return append_version_query(preview, data_version)
 
 
 def split_terms(value: Any) -> list[str]:
@@ -217,7 +239,7 @@ def detail_rows(artwork: dict[str, Any]) -> str:
     return "\n".join(rows) or '<p class="artwork-empty">作品資料整理中。</p>'
 
 
-def render(template: str, artwork: dict[str, Any]) -> tuple[str, dict[str, str]]:
+def render(template: str, artwork: dict[str, Any], data_version: str = "") -> tuple[str, dict[str, str]]:
     aid = artwork_id(artwork)
     title_zh = first(artwork, "titleZh", "nameZh", "title") or aid
     title_en = first(artwork, "titleEn", "nameEn")
@@ -225,8 +247,11 @@ def render(template: str, artwork: dict[str, Any]) -> tuple[str, dict[str, str]]
     description = str(description_raw).replace("\r\n", "\n").replace("\r", "\n").strip()
     page_title = seo_title(artwork)
     meta_description = seo_description(artwork)
-    image = image_url(artwork)
+    data_version = text(data_version)
+    image = image_url(artwork, data_version)
+    preview_image = social_preview_image_url(artwork, data_version)
     canonical = urljoin(BASE_URL, f"works/{quote(aid)}.html")
+    share_url = append_version_query(canonical, data_version, "share")
     modal_url = urljoin(BASE_URL, f"works.html?id={quote(aid)}")
     image_alt = f"{title_zh} 謝秀英作品"
 
@@ -235,11 +260,12 @@ def render(template: str, artwork: dict[str, Any]) -> tuple[str, dict[str, str]]
         "{{PAGE_TITLE}}": html.escape(page_title),
         "{{META_DESCRIPTION}}": html.escape(meta_description, quote=True),
         "{{CANONICAL_URL}}": html.escape(canonical, quote=True),
+        "{{SHARE_URL}}": html.escape(share_url, quote=True),
         "{{OG_TITLE}}": html.escape(page_title, quote=True),
         "{{OG_DESCRIPTION}}": html.escape(meta_description, quote=True),
-        "{{OG_IMAGE}}": html.escape(image, quote=True),
+        "{{OG_IMAGE}}": html.escape(preview_image, quote=True),
         "{{OG_IMAGE_ALT}}": html.escape(image_alt, quote=True),
-        "{{JSON_LD}}": json_ld(artwork, canonical, image),
+        "{{JSON_LD}}": json_ld(artwork, canonical, preview_image),
         "{{ARTWORK_ID}}": html.escape(aid),
         "{{TITLE_ZH}}": html.escape(title_zh),
         "{{TITLE_EN_BLOCK}}": f'<p class="artwork-title-en" lang="en">{html.escape(title_en)}</p>' if title_en else "",
@@ -263,6 +289,7 @@ def render(template: str, artwork: dict[str, Any]) -> tuple[str, dict[str, str]]
         "path": f"works/{aid}.html",
         "canonical": canonical,
         "image": image,
+        "socialPreviewImage": preview_image,
     }
 
 
@@ -319,7 +346,7 @@ def main() -> None:
         if aid in seen:
             fail(f"公開作品編號重複：{aid}")
         seen.add(aid)
-        page, entry = render(template, artwork)
+        page, entry = render(template, artwork, text(payload.get("dataVersion")))
         rendered.append((f"{aid}.html", page, entry))
 
     args.output_dir.mkdir(parents=True, exist_ok=True)

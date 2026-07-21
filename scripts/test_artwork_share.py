@@ -24,9 +24,9 @@ def main() -> None:
     require(template, "data-share-artwork", "獨立作品頁缺少分享按鈕")
     if '<p class="eyebrow">ARTWORK</p>' in template:
         raise AssertionError("獨立作品頁仍顯示 ARTWORK 標籤")
-    require(template, "../artwork-share.js?v=8280", "獨立作品頁未載入分享流程")
+    require(template, "../artwork-share.js?v=82110", "獨立作品頁未載入分享流程")
 
-    require(share_js, "navigator.share", "手機 Web Share API 未實作")
+    require(share_js, "navigator.share({url:payload.url})", "手機 Web Share API 必須使用純網址相容模式")
     require(share_js, "facebook.com/sharer/sharer.php", "桌機 Facebook 分享未實作")
     require(share_js, "social-plugins.line.me/lineit/share", "桌機 LINE 分享未實作")
     require(share_js, "twitter.com/intent/tweet", "桌機 X 分享未實作")
@@ -53,9 +53,9 @@ def main() -> None:
     app_pages = ["index.html", "about.html", "gallery.html", "works.html", "exhibitions.html", "history.html", "contact.html"]
     for filename in app_pages:
         page = (ROOT / filename).read_text(encoding="utf-8")
-        require(page, "artwork-share.js?v=8280", f"{filename} 未載入分享程式")
-        require(page, "app.js?v=8290", f"{filename} 未更新 app.js 版本")
-        require(page, "style.css?v=82100", f"{filename} 未更新 V8.2.10 樣式版本")
+        require(page, "artwork-share.js?v=82110", f"{filename} 未載入分享程式")
+        require(page, "app.js?v=82110", f"{filename} 未更新 app.js 版本")
+        require(page, "style.css?v=82110", f"{filename} 未更新 V8.2.10 樣式版本")
 
     print("STEP 3 分享流程自動化驗收全部通過")
 
