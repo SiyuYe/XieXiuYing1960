@@ -63,10 +63,11 @@ def main() -> None:
         display_image = "https://siyuye.github.io/XieXiuYing1960/artworks/2400/XH0001.webp?v=TEST001"
         preview_image = "https://siyuye.github.io/XieXiuYing1960/images/artworks/1200/XH0001.webp?v=TEST001"
         assert f'<link rel="canonical" href="{canonical}">' in html_text, "Canonical 錯誤"
-        assert f'<meta property="og:url" content="{canonical}">' in html_text, "og:url 錯誤"
+        assert f'<meta property="og:url" content="{canonical}?share=TEST001">' in html_text, "og:url 必須帶資料版本"
         assert f'<meta property="og:image" content="{preview_image}">' in html_text, "og:image 必須使用 1200 圖庫且為絕對、版本化網址"
         assert f'<meta name="twitter:image" content="{preview_image}">' in html_text, "twitter:image 必須使用 1200 圖庫"
         assert f'<img src="{display_image}"' in html_text, "作品頁大圖來源不應被社群預覽圖修改"
+        assert 'src="../assets/images/header-banner.webp?v=TEST001"' in html_text, "作品頁頁首橫幅必須同步最新 dataVersion"
         assert f'data-share-url="{canonical}?share=TEST001"' in html_text, "分享網址必須帶資料版本"
         assert '<meta name="twitter:card" content="summary_large_image">' in html_text, "Twitter Card 缺失"
         match = re.search(r'<script type="application/ld\+json">(.*?)</script>', html_text, re.S)

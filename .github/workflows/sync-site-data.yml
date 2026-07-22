@@ -74,7 +74,7 @@ jobs:
         run: |
           python3 scripts/update_social_meta.py \
             data/site-data.json \
-            index.html about.html gallery.html works.html exhibitions.html history.html contact.html templates/artwork-page.html
+            index.html about.html gallery.html works.html exhibitions.html history.html contact.html
 
       - name: Run STEP 1 + STEP 2 artwork page acceptance test
         run: |

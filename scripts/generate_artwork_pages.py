@@ -261,6 +261,7 @@ def render(template: str, artwork: dict[str, Any], data_version: str = "") -> tu
         "{{META_DESCRIPTION}}": html.escape(meta_description, quote=True),
         "{{CANONICAL_URL}}": html.escape(canonical, quote=True),
         "{{SHARE_URL}}": html.escape(share_url, quote=True),
+        "{{DATA_VERSION}}": html.escape(data_version, quote=True),
         "{{OG_TITLE}}": html.escape(page_title, quote=True),
         "{{OG_DESCRIPTION}}": html.escape(meta_description, quote=True),
         "{{OG_IMAGE}}": html.escape(preview_image, quote=True),
